@@ -205,6 +205,7 @@ pub fn shell_session_open(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn shell_session_run(
     state: tauri::State<'_, ShellState>,
     registry: tauri::State<'_, WorkspaceRegistry>,

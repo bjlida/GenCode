@@ -62,6 +62,7 @@ pub fn check_write(policy: &SecurityPolicy, path: &str) -> EnforcementResult {
 }
 
 /// Check whether deleting `path` is allowed.
+#[allow(dead_code)]
 pub fn check_delete(policy: &SecurityPolicy, path: &str) -> EnforcementResult {
     let read_result = check_read(policy, path);
     if read_result.is_denied() {
@@ -174,6 +175,7 @@ pub fn check_network(policy: &SecurityPolicy, domain: &str) -> EnforcementResult
 }
 
 /// Check whether spawning a new process is allowed given current count.
+#[allow(dead_code)]
 pub fn check_process_spawn(policy: &SecurityPolicy, current_count: u32) -> EnforcementResult {
     if policy.max_process_count > 0 && current_count >= policy.max_process_count {
         return EnforcementResult::Denied(format!(
