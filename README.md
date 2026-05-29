@@ -15,6 +15,8 @@
 
 ## 关于本项目
 
+> 本项目基于 [Crynta/Terax](https://github.com/Crynta/Terax) (Apache 2.0) 二次开发。
+
 GenCode (灵码ADE) 是一款 **AI 原生终端模拟器 (ADE — Agentic Development Environment)**，定位 terminal-first 的 AI 编程终端，区别于 VS Code 等重 IDE，聚焦终端交互 + AI 辅助编码一体化体验。全中文界面，开箱即用。核心二进制约 7-8 MB，无遥测，无账户系统。
 
 - **技术栈**: Tauri 2 + Rust (`portable-pty`) + React 19 + TypeScript + xterm.js (WebGL) + CodeMirror 6 + Vercel AI SDK v6 + Tailwind v4
