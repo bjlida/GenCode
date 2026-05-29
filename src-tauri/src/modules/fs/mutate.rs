@@ -1,6 +1,6 @@
 use std::fs::OpenOptions;
 
-use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry};
+use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
 /// Creates a new empty file. Fails if the file already exists.
 /// Uses `create_new(true)` (O_EXCL / CREATE_NEW) so the existence check
@@ -128,6 +128,30 @@ fn fs_delete_impl(
     workspace: &WorkspaceEnv,
     registry: &WorkspaceRegistry,
 ) -> Result<(), String> {
+    let resolved = resolve_path(path, workspace);
+
+    // If the path is a symlink, delete the link itself — never follow it.
+    if let Ok(meta) = std::fs::symlink_metadata(&resolved) {
+        if meta.file_type().is_symlink() {
+            // Authorize using the parent directory so we don't canonicalize
+            // through the symlink to the target.
+            if let Some(parent) = resolved.parent() {
+                let canon_parent = std::fs::canonicalize(parent)
+                    .map_err(|e| format!("无法解析父目录: {e}"))?;
+                if !registry.is_authorized(&canon_parent) {
+                    return Err(format!(
+                        "path outside workspace: {}",
+                        canon_parent.display()
+                    ));
+                }
+            }
+            return std::fs::remove_file(&resolved).map_err(|e| {
+                log::warn!("fs_delete symlink({}) failed: {e}", resolved.display());
+                e.to_string()
+            });
+        }
+    }
+
     let p = super::require_authorized(registry, workspace, path)?;
     let meta = std::fs::symlink_metadata(&p).map_err(|e| {
         log::debug!("fs_delete stat({}) failed: {e}", p.display());
