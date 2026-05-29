@@ -1,0 +1,125 @@
+import { tool } from "ai";
+import { z } from "zod";
+import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore";
+import { writeToSession } from "@/modules/terminal";
+import type { ToolContext } from "./context";
+
+// Claude Code's TUI treats a trailing CR in the same write chunk as the text
+// as a literal newline, not a submit. Send the Enter as a separate chunk once
+// the input has rendered so it registers as a standalone keypress.
+const SUBMIT_DELAY_MS = 90;
+
+function hasControlChars(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x20 || c === 0x7f) return true;
+  }
+  return false;
+}
+
+function tailLines(text: string, n: number): string {
+  const parts = text.split("\n");
+  return parts.length <= n ? text : parts.slice(parts.length - n).join("\n");
+}
+
+export function buildManagedAgentTools(ctx: ToolContext) {
+  return {
+    spawn_coding_agent: tool({
+      description:
+        "Spawn a Claude Code agent in a new terminal tab and give it the prompt. Use this when the user (via /claude-code) wants work delegated and no agent is active yet in this session. Craft a complete, self-contained prompt first; the user approves it before the agent starts. Do not call this if an agent is already active — use send_to_agent instead.",
+      inputSchema: z.object({
+        prompt: z
+          .string()
+          .min(1)
+          .describe(
+            "The full, self-contained task prompt for the Claude Code agent.",
+          ),
+      }),
+      needsApproval: true,
+      execute: async ({ prompt }) => {
+        const sessionId = ctx.getSessionId();
+        if (!sessionId) return { error: "无活跃聊天会话" };
+        const store = useManagedAgentsStore.getState();
+        if (store.getBySessionId(sessionId)) {
+          return {
+            error:
+              "此会话中已有 Claude Code 代理在运行；请使用 send_to_agent 向其发送后续指令",
+          };
+        }
+        const spawned = ctx.spawnAgent(prompt);
+        if (!spawned) return { error: "无法启动代理" };
+        return {
+          ok: true,
+          tab_id: spawned.tabId,
+          message: "Claude Code 代理已启动，即将开始工作。",
+        };
+      },
+    }),
+
+    send_to_agent: tool({
+      description:
+        "Send a follow-up instruction to the active Claude Code agent in this session. Use after reviewing its output to request fixes or the next unit of work. The instruction is typed into the agent's prompt and submitted once the user approves. Read its latest output first so the follow-up is informed.",
+      inputSchema: z.object({
+        instruction: z
+          .string()
+          .min(1)
+          .describe(
+            "One clear, self-contained instruction for the agent. No control characters.",
+          ),
+      }),
+      needsApproval: true,
+      execute: async ({ instruction }) => {
+        const sessionId = ctx.getSessionId();
+        const store = useManagedAgentsStore.getState();
+        const managed = sessionId ? store.getBySessionId(sessionId) : undefined;
+        if (!managed) {
+          return {
+            error:
+              "此会话中无活跃 Claude Code 代理；请使用 spawn_coding_agent 启动一个",
+          };
+        }
+        const oneLine = instruction.replace(/\s*\r?\n\s*/g, " ").trim();
+        if (!oneLine) return { error: "指令为空" };
+        if (hasControlChars(oneLine)) {
+          return { error: "指令包含控制字符" };
+        }
+        if (!writeToSession(managed.leafId, oneLine)) {
+          store.remove(managed.leafId);
+          return { error: "代理终端不再可用（可能已关闭）" };
+        }
+        setTimeout(() => writeToSession(managed.leafId, "\r"), SUBMIT_DELAY_MS);
+        store.bumpRound(managed.leafId);
+        return { ok: true, sent: oneLine, round: store.get(managed.leafId)?.rounds };
+      },
+    }),
+
+    read_agent_output: tool({
+      description:
+        "Inspect the Claude Code agent in this session: whether one is active, its status, and the tail of its terminal output. Call this first when handling a /claude-code request so you know whether to spawn a new agent or follow up with the existing one, and to see what it has done and reported.",
+      inputSchema: z.object({
+        lines: z
+          .number()
+          .int()
+          .min(1)
+          .max(400)
+          .optional()
+          .describe("Trailing lines of the agent terminal to return. Default 120."),
+      }),
+      execute: async ({ lines }) => {
+        const sessionId = ctx.getSessionId();
+        const managed = sessionId
+          ? useManagedAgentsStore.getState().getBySessionId(sessionId)
+          : undefined;
+        if (!managed) return { active: false };
+        const raw = ctx.readAgentOutput(managed.leafId);
+        return {
+          active: true,
+          phase: managed.phase,
+          rounds: managed.rounds,
+          max_rounds: managed.maxRounds,
+          output: raw ? tailLines(raw, lines ?? 120) : "",
+        };
+      },
+    }),
+  } as const;
+}

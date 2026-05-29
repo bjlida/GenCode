@@ -1,0 +1,356 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./fonts.css";
+@import "./code-highlight.css";
+
+@source "../../node_modules/streamdown/dist/index.js";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+    --font-size-xs: 0.8rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: #ffffff;
+    --foreground: #0a0a0a;
+    --card: #fafafa;
+    --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
+    --primary: #0a0a0a;
+    --primary-foreground: #fafafa;
+    --secondary: #f5f5f5;
+    --secondary-foreground: #1a1a1a;
+    --muted: #f5f5f5;
+    --muted-foreground: #737373;
+    --accent: #ebebeb;
+    --accent-foreground: #1a1a1a;
+    --destructive: #dc2626;
+    --border: #e5e5e5;
+    --input: #ededed;
+    --ring: #0a0a0a;
+    --chart-1: #0a0a0a;
+    --chart-2: #333333;
+    --chart-3: #555555;
+    --chart-4: #777777;
+    --chart-5: #999999;
+    --radius: 0.5rem;
+    --sidebar: #fafafa;
+    --sidebar-foreground: #0a0a0a;
+    --sidebar-primary: #0a0a0a;
+    --sidebar-primary-foreground: #fafafa;
+    --sidebar-accent: #ebebeb;
+    --sidebar-accent-foreground: #1a1a1a;
+    --sidebar-border: #e5e5e5;
+    --sidebar-ring: #0a0a0a;
+}
+
+.dark {
+    --background: #000000;
+    --foreground: #f5f5f5;
+    --card: #0d0d0d;
+    --card-foreground: #f5f5f5;
+    --popover: #0d0d0d;
+    --popover-foreground: #f5f5f5;
+    --primary: #fafafa;
+    --primary-foreground: #0d0d0d;
+    --secondary: #1a1a1a;
+    --secondary-foreground: #e5e5e5;
+    --muted: #1a1a1a;
+    --muted-foreground: #8c8c8c;
+    --accent: #262626;
+    --accent-foreground: #f5f5f5;
+    --destructive: #ef4444;
+    --border: #2a2a2a;
+    --input: #1f1f1f;
+    --ring: #fafafa;
+    --chart-1: #e5e5e5;
+    --chart-2: #a3a3a3;
+    --chart-3: #737373;
+    --chart-4: #525252;
+    --chart-5: #404040;
+    --sidebar: #050505;
+    --sidebar-foreground: #e5e5e5;
+    --sidebar-primary: #fafafa;
+    --sidebar-primary-foreground: #0d0d0d;
+    --sidebar-accent: #1a1a1a;
+    --sidebar-accent-foreground: #f5f5f5;
+    --sidebar-border: #1f1f1f;
+    --sidebar-ring: #fafafa;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+    }
+  html, body, #root {
+    height: 100%;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+:root {
+  --terminal-background: var(--background);
+  --terminal-foreground: var(--foreground);
+  --terminal-cursor: var(--foreground);
+  --terminal-cursor-accent: var(--background);
+  --terminal-selection: var(--accent);
+  --terminal-ansi-black: #1a1a1a;
+  --terminal-ansi-red: #ef4444;
+  --terminal-ansi-green: #22c55e;
+  --terminal-ansi-yellow: #eab308;
+  --terminal-ansi-blue: #3b82f6;
+  --terminal-ansi-magenta: #a855f7;
+  --terminal-ansi-cyan: #06b6d4;
+  --terminal-ansi-white: #e5e5e5;
+  --terminal-ansi-bright-black: #666666;
+  --terminal-ansi-bright-red: #f87171;
+  --terminal-ansi-bright-green: #4ade80;
+  --terminal-ansi-bright-yellow: #facc15;
+  --terminal-ansi-bright-blue: #60a5fa;
+  --terminal-ansi-bright-magenta: #c084fc;
+  --terminal-ansi-bright-cyan: #22d3ee;
+  --terminal-ansi-bright-white: #ffffff;
+}
+
+:root {
+  --app-zoom: 1;
+}
+
+html[data-chrome="borderless"] .gencode-bg-surface {
+  border-radius: 12px;
+}
+.zoom-content {
+  zoom: var(--app-zoom);
+}
+.zoom-exempt {
+  zoom: calc(1 / var(--app-zoom));
+}
+
+/* Custom window chrome (Linux/Windows): the OS gives us a transparent
+ * borderless window, and we paint the rounded corners + border + shadow
+ * ourselves so the app doesn't look naked on GNOME/KDE/Hyprland. */
+html[data-chrome="borderless"],
+html[data-chrome="borderless"] body {
+  background: transparent !important;
+}
+html[data-chrome="borderless"] #root,
+html[data-chrome="borderless"] #settings-root {
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--background);
+  outline: 1px solid var(--background);
+  outline-offset: -1px;
+}
+
+/*
+ * xterm.js overrides — kept outside @layer so they win against the addon's
+ * own stylesheet (which is not in any layer and would otherwise override).
+ *
+ * Newer xterm renders scrollbars as real <div class="scrollbar vertical|horizontal">
+ * children rather than relying on native overflow scrollbars. Both code paths exist
+ * across versions, so we hide both.
+ */
+.xterm .scrollbar,
+.xterm .scrollbar.vertical,
+.xterm .scrollbar.horizontal {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+}
+.xterm .xterm-viewport,
+.xterm-viewport {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.xterm .xterm-viewport::-webkit-scrollbar,
+.xterm-viewport::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.xterm,
+.xterm-screen,
+.xterm:focus,
+.xterm.focus {
+  outline: none !important;
+}
+
+.cm-editor,
+.cm-scroller {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.cm-editor::-webkit-scrollbar,
+.cm-scroller::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable="true"],
+.cm-editor,
+.select-text,
+.select-text * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.cm-color-swatch {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.35em;
+  border-radius: 3px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  vertical-align: middle;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.cm-color-swatch-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+
+.no-scrollbar {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.no-scrollbar-deep,
+.no-scrollbar-deep * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.no-scrollbar-deep::-webkit-scrollbar,
+.no-scrollbar-deep *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* Kill native scrollbars everywhere by default — Linux/Windows ship chunky
+ * Chromium bars that break the chrome, and macOS WKWebView flashes its overlay
+ * scrollbar briefly during layout transitions (AI panel open, pane split,
+ * window resize) which looks like a glitch. Visible scroll affordances are
+ * provided per-region via shadcn <ScrollArea>. */
+html,
+html *,
+html *::before,
+html *::after {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+@keyframes gencode-collapsible-down {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes gencode-collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.gencode-collapsible-content {
+  overflow: hidden;
+}
+.gencode-collapsible-content[data-state="open"] {
+  animation: gencode-collapsible-down 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gencode-collapsible-content[data-state="closed"] {
+  animation: gencode-collapsible-up 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
