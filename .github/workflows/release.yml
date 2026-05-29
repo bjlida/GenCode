@@ -92,7 +92,8 @@ jobs:
 
       - name: Upload portable to release
         if: env.portable == 'yes'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: ${{ env.portable_zip }}
+        shell: bash
+        run: |
+          gh release upload "${{ github.ref_name }}" "${{ env.portable_zip }}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
