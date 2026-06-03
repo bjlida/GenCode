@@ -21,6 +21,7 @@ GenCode (灵码ADE) 是一款 **AI 原生终端模拟器 (ADE — Agentic Develo
 
 - **技术栈**: Tauri 2 + Rust (`portable-pty`) + React 19 + TypeScript + xterm.js (WebGL) + CodeMirror 6 + Vercel AI SDK v6 + Tailwind v4
 - **许可证**: [Apache License 2.0](LICENSE)
+- **功能文档 / Docs**: [resources/](resources/)（[English](resources/en/user-guide.md) · [简体中文](resources/zh-CN/user-guide.md)）
 - **路线图**: [ROADMAP.md](ROADMAP.md) · **开发指南**: [CLAUDE.md](CLAUDE.md) · **安全报告**: [SECURITY.md](SECURITY.md)
 
 ## 界面布局
@@ -312,6 +313,9 @@ pnpm tauri build --no-bundle
 ## 项目结构
 
 ```
+├── resources/              # 用户功能文档 (中/英)
+│   ├── en/user-guide.md
+│   └── zh-CN/user-guide.md
 ├── src/                    # React 前端
 │   ├── modules/
 │   │   ├── ai/             # AI 子系统
