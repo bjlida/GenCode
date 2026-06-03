@@ -93,7 +93,7 @@ export function AiMiniWindow() {
       className={cn(
         "no-scrollbar-deep fixed right-4 bottom-24 z-40 flex flex-col overflow-hidden",
         "h-[min(42rem,calc(100vh-7rem))] w-[min(34rem,calc(100vw-2rem))]",
-        "rounded-2xl border border-border/60 bg-card text-[15px]",
+        "rounded-2xl border border-border/60 bg-card text-[13px]",
         "shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_24px_48px_-12px_rgba(0,0,0,0.45),0_8px_16px_-8px_rgba(0,0,0,0.3)]",
         "ring-1 ring-black/5 dark:ring-white/5",
       )}
@@ -175,7 +175,7 @@ function PlanModeStrip() {
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-muted/40 px-3 py-1.5">
       <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
-      <span className="text-[15px] font-medium text-foreground">规划模式</span>
+      <span className="text-[13px] font-medium text-foreground">规划模式</span>
       <span className="text-[13px] text-muted-foreground">
         {queueLen > 0 ? `· ${queueLen} 个待执行` : "· 无待执行编辑"}
       </span>
@@ -311,8 +311,8 @@ function ContextIndicator({ messages }: { messages: UIMessage[] }) {
 
   return (
     <Context usedTokens={used} maxTokens={max} modelId={modelId}>
-      <ContextTrigger className="h-6 gap-1 px-0 text-[15px]" />
-      <ContextContent className="w-64 text-[15px]">
+      <ContextTrigger className="h-6 gap-1 px-0 text-[13px]" />
+      <ContextContent className="w-64 text-[13px]">
         <ContextContentHeader />
         <ContextContentBody>
           <div className="flex items-center justify-between text-muted-foreground">
@@ -489,7 +489,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8 py-10 text-center">
       <img src="/logo.png" alt="灵码ADE" className="size-14 opacity-90" />
       <div className="space-y-1.5">
-        <p className="text-[15px] font-semibold tracking-tight">
+        <p className="text-[13px] font-semibold tracking-tight">
           向灵码ADE 提问
         </p>
         <p className="max-w-[18rem] text-[13px] leading-relaxed text-muted-foreground">
@@ -511,7 +511,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
               <HugeiconsIcon icon={s.icon} size={13} strokeWidth={1.75} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[15px] font-medium text-foreground">
+              <div className="text-[13px] font-medium text-foreground">
                 {s.label}
               </div>
               <div className="text-[13px] text-muted-foreground">

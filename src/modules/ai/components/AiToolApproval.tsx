@@ -46,7 +46,7 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           strokeWidth={1.75}
           className="shrink-0 text-muted-foreground"
         />
-        <span className="text-[15px] font-medium text-foreground">
+        <span className="text-[13px] font-medium text-foreground">
           {label}
         </span>
         <span className="ml-auto text-[13px] text-muted-foreground">
@@ -63,7 +63,7 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           size="sm"
           variant="ghost"
           onClick={() => onRespond(false)}
-          className="h-7 gap-1.5 text-[15px]"
+          className="h-7 gap-1.5 text-[13px]"
         >
           <HugeiconsIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
           拒绝
@@ -72,7 +72,7 @@ function AiToolApprovalImpl({ part, toolName, onRespond }: Props) {
           size="sm"
           variant="default"
           onClick={() => onRespond(true)}
-          className="h-7 gap-1.5 text-[15px]"
+          className="h-7 gap-1.5 text-[13px]"
         >
           <HugeiconsIcon icon={Tick02Icon} size={12} strokeWidth={2} />
           批准

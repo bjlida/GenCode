@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { File02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { invoke } from "@tauri-apps/api/core";
@@ -32,13 +33,13 @@ export function NewEditorDialog({
   rootPath,
   onCreated,
 }: Props) {
-  const [name, setName] = useState("untitled.txt");
+  const [name, setName] = useState("未命名.txt");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    setName("untitled.txt");
+    setName("未命名.txt");
     setError(null);
     // Pre-select the basename so the user can quickly retype the filename
     // while keeping the extension handy.
@@ -54,15 +55,15 @@ export function NewEditorDialog({
   const submit = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      setError("Name is required");
+      setError("请输入文件名");
       return;
     }
     if (trimmed.includes("..")) {
-      setError("Path must be relative");
+      setError("路径必须为相对路径");
       return;
     }
     if (!rootPath) {
-      setError("No workspace root");
+      setError("未打开工作区");
       return;
     }
     const path = trimmed.startsWith("/")
@@ -79,44 +80,50 @@ export function NewEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md gap-4">
         <DialogHeader>
-          <DialogTitle className="flex gap-1.75">
-            <HugeiconsIcon icon={File02Icon} size={16} strokeWidth={1.75} />
-            New file
+          <DialogTitle className="flex items-center gap-1.5 text-[13px]">
+            <HugeiconsIcon icon={File02Icon} size={15} strokeWidth={1.75} />
+            新建文件
           </DialogTitle>
           <DialogDescription>
-            Filename (relative to workspace root). The extension determines the
-            language mode.
+            文件名相对于工作区根目录，扩展名决定编辑器的语言模式。
           </DialogDescription>
         </DialogHeader>
-        <Input
-          ref={inputRef}
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          placeholder="example.ts"
-        />
-        {error ? (
-          <div className="text-xs text-destructive">{error}</div>
-        ) : (
-          <div className="text-xs text-muted-foreground truncate">
-            {rootPath ? joinPath(rootPath, name.trim() || "…") : "—"}
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="new-editor-filename">文件名</Label>
+          <Input
+            id="new-editor-filename"
+            ref={inputRef}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            placeholder="示例.ts"
+            className="h-8 text-[12px]"
+          />
+          {error ? (
+            <p className="text-[11px] text-destructive">{error}</p>
+          ) : (
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {rootPath ? joinPath(rootPath, name.trim() || "…") : "—"}
+            </p>
+          )}
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            取消
           </Button>
-          <Button onClick={() => void submit()}>Create</Button>
+          <Button size="sm" onClick={() => void submit()}>
+            创建
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

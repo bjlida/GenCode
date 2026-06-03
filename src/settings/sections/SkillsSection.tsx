@@ -83,8 +83,8 @@ export function SkillsSection() {
   return (
     <div className="flex flex-col gap-6">
       <SectionHeader
-        title="Skills"
-        description="安装和管理技能以扩展 Claude Code 的能力"
+        title="Claude 技能"
+        description="从 GitHub 安装和管理 Claude Code 扩展技能"
       />
 
       {error && (
@@ -104,7 +104,7 @@ export function SkillsSection() {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="搜索技能..."
-            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-[14px] outline-none"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] outline-none"
           />
           <button
             type="button"
@@ -127,7 +127,7 @@ export function SkillsSection() {
                   className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/60 p-3"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium">{s.name}</p>
+                    <p className="text-[13px] font-medium">{s.name}</p>
                     <p className="text-[12px] text-muted-foreground">
                       {s.description}
                     </p>
@@ -170,7 +170,7 @@ export function SkillsSection() {
           已安装 ({installed.length})
         </h3>
         {installed.length === 0 ? (
-          <p className="text-[14px] text-muted-foreground py-4 text-center">
+          <p className="text-[13px] text-muted-foreground py-4 text-center">
             暂无已安装的技能          </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -180,7 +180,7 @@ export function SkillsSection() {
                 className="flex items-center gap-3 rounded-lg border border-border/30 bg-card/60 p-3"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-medium">
+                  <p className="text-[13px] font-medium">
                     {s.meta.name}
                     {!s.managed && (
                       <span className="ml-2 rounded bg-muted/50 px-1 py-0.5 text-[11px] text-muted-foreground">

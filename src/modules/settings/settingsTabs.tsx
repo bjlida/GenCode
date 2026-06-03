@@ -29,9 +29,9 @@ export const SETTINGS_TABS: {
   { id: "themes", label: "主题", icon: PaintBoardIcon, component: ThemesSection },
   { id: "shortcuts", label: "快捷键", icon: KeyboardIcon, component: ShortcutsSection },
   { id: "models", label: "模型", icon: AiScanIcon, component: ModelsSection },
-  { id: "agents", label: "代理", icon: UserMultiple02Icon, component: AgentsSection },
+  { id: "agents", label: "Agent", icon: UserMultiple02Icon, component: AgentsSection },
   { id: "claude-code", label: "Claude Code", icon: ClaudeIcon, component: ClaudeCodeSection },
-  { id: "skills", label: "Skills", icon: BookOpen01Icon, component: SkillsSection },
+  { id: "skills", label: "Claude 技能", icon: BookOpen01Icon, component: SkillsSection },
   { id: "about", label: "关于", icon: InformationCircleIcon, component: AboutSection },
 ];
 

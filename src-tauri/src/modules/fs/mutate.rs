@@ -1,4 +1,5 @@
 use std::fs::OpenOptions;
+use std::path::Path;
 
 use crate::modules::workspace::{resolve_path, WorkspaceEnv, WorkspaceRegistry};
 
@@ -180,6 +181,80 @@ pub fn fs_delete(
     fs_delete_impl(&path, &workspace, &registry)
 }
 
+fn copy_tree(src: &Path, dest: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let dest_real = std::fs::canonicalize(dest).unwrap_or_else(|_| dest.to_path_buf());
+
+    for entry in std::fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
+        let src_path = entry.path();
+        let dest_path = dest_real.join(entry.file_name());
+
+        if let Ok(canon) = dest_path.canonicalize() {
+            if !canon.starts_with(&dest_real) {
+                log::warn!("fs_copy: skipping path outside target: {}", src_path.display());
+                continue;
+            }
+        }
+
+        if let Ok(ft) = entry.file_type() {
+            if ft.is_symlink() {
+                log::warn!("fs_copy: skipping symlink: {}", src_path.display());
+                continue;
+            }
+        }
+
+        if src_path.is_dir() {
+            copy_tree(&src_path, &dest_path)?;
+        } else {
+            std::fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Recursively copies a file or directory. Fails if the destination exists.
+fn fs_copy_impl(
+    from: &str,
+    to: &str,
+    workspace: &WorkspaceEnv,
+    registry: &WorkspaceRegistry,
+) -> Result<(), String> {
+    let from_p = super::require_authorized(registry, workspace, from)?;
+    let to_p = super::require_authorized(registry, workspace, to)?;
+    if !from_p.exists() {
+        return Err(format!("not found: {}", from_p.display()));
+    }
+    if to_p.exists() {
+        return Err(format!("already exists: {}", to_p.display()));
+    }
+
+    let meta = std::fs::symlink_metadata(&from_p).map_err(|e| e.to_string())?;
+    if meta.file_type().is_symlink() {
+        return Err(format!("cannot copy symlink: {}", from_p.display()));
+    }
+
+    if meta.is_dir() {
+        copy_tree(&from_p, &to_p)
+    } else {
+        if let Some(parent) = to_p.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::copy(&from_p, &to_p).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
+#[tauri::command]
+pub fn fs_copy(
+    from: String,
+    to: String,
+    workspace: Option<WorkspaceEnv>,
+    registry: tauri::State<'_, WorkspaceRegistry>,
+) -> Result<(), String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    fs_copy_impl(&from, &to, &workspace, &registry)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,6 +342,34 @@ mod tests {
 
         let err = fs_delete_impl(&s(dir.path().join("missing")), &workspace, &reg).unwrap_err();
         assert!(!err.is_empty());
+    }
+
+    #[test]
+    fn copy_duplicates_file_and_tree() {
+        let dir = tempfile::tempdir().unwrap();
+        let reg = test_registry(dir.path());
+        let workspace = WorkspaceEnv::Local;
+        let src = dir.path().join("a.txt");
+        std::fs::write(&src, b"payload").unwrap();
+        let dest = dir.path().join("b.txt");
+        fs_copy_impl(&s(src.clone()), &s(dest.clone()), &workspace, &reg).expect("copy file");
+        assert_eq!(std::fs::read(&dest).unwrap(), b"payload");
+
+        let src_dir = dir.path().join("tree");
+        std::fs::create_dir_all(src_dir.join("inner")).unwrap();
+        std::fs::write(src_dir.join("inner/x.txt"), b"x").unwrap();
+        let dest_dir = dir.path().join("tree-copy");
+        fs_copy_impl(
+            &s(src_dir.clone()),
+            &s(dest_dir.clone()),
+            &workspace,
+            &reg,
+        )
+        .expect("copy dir");
+        assert_eq!(
+            std::fs::read(dest_dir.join("inner/x.txt")).unwrap(),
+            b"x"
+        );
     }
 
     // Deleting a symlink that points at a directory must remove only the link,

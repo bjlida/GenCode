@@ -19,12 +19,10 @@ import { cn } from "@/lib/utils";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import {
   Add01Icon,
-  AlertCircleIcon,
   ArrowDown01Icon,
   Cancel01Icon,
+  Clock01Icon,
   Delete02Icon,
-  FilterIcon,
-  TerminalIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
@@ -34,32 +32,10 @@ import { useAgentsStore } from "../store/agentsStore";
 import { getOrCreateChat, useChatStore } from "../store/chatStore";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { usePlanStore } from "../store/planStore";
-import { AgentSwitcher } from "./AgentSwitcher";
 import { AiChatView } from "./AiChat";
 import { AiInputBar } from "./AiInputBar";
 import { PlanDiffReview } from "./PlanDiffReview";
 import { TodoStrip } from "./TodoStrip";
-
-const SUGGESTIONS = [
-  {
-    label: "解释上一个错误",
-    hint: "读取终端缓冲区",
-    icon: AlertCircleIcon,
-    text: "解释终端中的上一个错误。",
-  },
-  {
-    label: "生成命令",
-    hint: "告诉我你想做什么",
-    icon: TerminalIcon,
-    text: "帮我生成一个命令：",
-  },
-  {
-    label: "总结缓冲区",
-    hint: "回顾近期活动",
-    icon: FilterIcon,
-    text: "总结终端中刚刚发生的事情。",
-  },
-];
 
 type PanelHeaderProps = {
   step: string | null;
@@ -79,7 +55,7 @@ export function AiAgentPanel({ onClose }: { onClose?: () => void }) {
 
   if (!sessionId) {
     return (
-      <div className="flex h-full min-h-0 flex-col rounded-t-xl border-t border-border/60 bg-card/95 supports-[backdrop-filter]:bg-card/90 supports-[backdrop-filter]:backdrop-blur-xl">
+      <div className="flex h-full min-h-0 flex-col border-l border-border/60 bg-card/95 supports-[backdrop-filter]:bg-card/90 supports-[backdrop-filter]:backdrop-blur-xl">
         <PanelHeader step={null} isBusy={false} onClose={handleClose} />
         <div className="flex flex-1 items-center justify-center text-[13px] text-muted-foreground">
           加载会话中…
@@ -89,7 +65,7 @@ export function AiAgentPanel({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-t-xl border-t border-border/60 bg-card/95 supports-[backdrop-filter]:bg-card/90 supports-[backdrop-filter]:backdrop-blur-xl">
+    <div className="flex h-full min-h-0 flex-col border-l border-border/60 bg-card/95 supports-[backdrop-filter]:bg-card/90 supports-[backdrop-filter]:backdrop-blur-xl">
       <PanelBody sessionId={sessionId} onClose={handleClose} />
       <PlanDiffReview />
     </div>
@@ -103,7 +79,6 @@ function PanelBody({
   sessionId: string;
   onClose: () => void;
 }) {
-  const focusInput = useChatStore((s) => s.focusInput);
   const step = useChatStore((s) => s.agentMeta.step);
 
   const chat = useMemo(() => getOrCreateChat(sessionId), [sessionId]);
@@ -123,20 +98,16 @@ function PanelBody({
       <PlanModeStrip />
 
       <div className="flex min-h-0 flex-1 flex-col">
-        {helpers.messages.length === 0 ? (
-          <EmptyState onPick={(text) => focusInput(text)} />
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col [&_.text-sm]:text-[15px] [&_p]:leading-relaxed">
-            <AiChatView
-              messages={helpers.messages}
-              status={helpers.status}
-              error={helpers.error}
-              clearError={helpers.clearError}
-              addToolApprovalResponse={helpers.addToolApprovalResponse}
-              stop={helpers.stop}
-            />
-          </div>
-        )}
+        <div className="flex min-h-0 flex-1 flex-col [&_.text-sm]:text-[15px] [&_p]:leading-relaxed">
+          <AiChatView
+            messages={helpers.messages}
+            status={helpers.status}
+            error={helpers.error}
+            clearError={helpers.clearError}
+            addToolApprovalResponse={helpers.addToolApprovalResponse}
+            stop={helpers.stop}
+          />
+        </div>
       </div>
 
       <TodoStrip sessionId={sessionId} />
@@ -153,7 +124,7 @@ function PlanModeStrip() {
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-border/40 bg-muted/40 px-3 py-1.5">
       <span className="size-1.5 shrink-0 rounded-full bg-amber-500" />
-      <span className="text-[15px] font-medium text-foreground">规划模式</span>
+      <span className="text-[13px] font-medium text-foreground">规划模式</span>
       <span className="text-[13px] text-muted-foreground">
         {queueLen > 0 ? `· ${queueLen} 个待执行` : "· 无待执行编辑"}
       </span>
@@ -175,7 +146,6 @@ function PanelHeader({ step, isBusy, onClose, messages }: PanelHeaderProps) {
   return (
     <div className="relative flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3">
       <div className="flex min-w-0 items-center gap-1.5">
-        <AgentSwitcher />
         {messages !== undefined ? (
           <ContextIndicator messages={messages} />
         ) : null}
@@ -199,7 +169,7 @@ function PanelHeader({ step, isBusy, onClose, messages }: PanelHeaderProps) {
           }}
         >
           <HugeiconsIcon icon={Add01Icon} size={12} strokeWidth={1.75} />
-          新代理
+          新对话
         </Button>
         {onClose ? (
           <Button
@@ -343,6 +313,7 @@ function SessionPicker() {
   if (!active) return null;
 
   const sorted = [...sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  const triggerLabel = "历史记录";
 
   return (
     <DropdownMenu>
@@ -354,9 +325,15 @@ function SessionPicker() {
             "text-[12px] text-muted-foreground transition-colors",
             "hover:bg-accent hover:text-foreground",
           )}
-          title="切换会话"
+          title="历史记录"
         >
-          <span className="truncate">{active.title || "新对话"}</span>
+          <HugeiconsIcon
+            icon={Clock01Icon}
+            size={11}
+            strokeWidth={1.75}
+            className="shrink-0 opacity-70"
+          />
+          <span className="truncate">{triggerLabel}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={10}
@@ -433,37 +410,3 @@ function SessionRow({
   );
 }
 
-function EmptyState({ onPick }: { onPick: (text: string) => void }) {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
-      <img src="/logo.png" alt="灵码ADE" className="size-12 opacity-90" />
-      <div className="space-y-1">
-        <p className="text-[14px] font-semibold tracking-tight">新代理</p>
-        <p className="max-w-[20rem] text-[12px] leading-relaxed text-muted-foreground">
-          灵码ADE 可以看到当前终端的工作目录、最近命令和输出。
-        </p>
-      </div>
-      <div className="flex w-full max-w-md flex-col gap-2">
-        {SUGGESTIONS.map((s) => (
-          <button
-            key={s.label}
-            type="button"
-            onClick={() => onPick(s.text)}
-            className={cn(
-              "group flex items-center gap-2.5 rounded-lg border border-border/60 bg-background/60 px-2.5 py-2 text-left",
-              "transition-colors hover:bg-muted/50",
-            )}
-          >
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/70 text-muted-foreground">
-              <HugeiconsIcon icon={s.icon} size={13} strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="text-[13px] font-medium">{s.label}</div>
-              <div className="text-[12px] text-muted-foreground">{s.hint}</div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

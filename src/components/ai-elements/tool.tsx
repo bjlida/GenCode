@@ -170,7 +170,7 @@ const ToolImpl = ({
         disabled={!hasDetails}
         className={cn(
           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left",
-          "text-[15px] transition-colors",
+          "text-[13px] transition-colors",
           "hover:bg-muted/60 disabled:cursor-default disabled:hover:bg-transparent",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         )}
@@ -194,7 +194,7 @@ const ToolImpl = ({
           <span className="flex-1" />
         )}
         {isError && (
-          <span className="shrink-0 text-[15px] font-medium text-destructive">
+          <span className="shrink-0 text-[13px] font-medium text-destructive">
             failed
           </span>
         )}
@@ -327,7 +327,7 @@ function ToolOutput({
   if (errorText) {
     return (
       <div className="space-y-1">
-        <div className="text-[15px] font-medium text-destructive">错误</div>
+        <div className="text-[13px] font-medium text-destructive">错误</div>
         <div className="rounded bg-destructive/10 px-2 py-1.5 font-mono text-[13px] text-destructive whitespace-pre-wrap">
           {errorText}
         </div>
@@ -347,7 +347,7 @@ function ToolOutput({
       <CodeBlockMini code={JSON.stringify(output, null, 2)} language="json" />
     );
   } else {
-    body = <div className="text-[15px]">{output as ReactNode}</div>;
+    body = <div className="text-[13px]">{output as ReactNode}</div>;
   }
 
   return (
@@ -731,7 +731,7 @@ function SuggestCommandCard({
           onClick={onInsert}
           disabled={inserted}
           className={cn(
-            "shrink-0 flex items-center gap-1 px-2.5 text-[15px] font-medium",
+            "shrink-0 flex items-center gap-1 px-2.5 text-[13px] font-medium",
             "border-l border-border/60",
             "hover:bg-muted/80 active:bg-muted",
             "disabled:opacity-60 disabled:cursor-default disabled:hover:bg-transparent",

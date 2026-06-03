@@ -17,7 +17,9 @@ import {
   AppleIcon,
   ArrowDown01Icon,
   ArrowUpIcon,
+  Attachment01Icon,
   BrainIcon,
+  Camera01Icon,
   ChatGptIcon,
   ClaudeIcon,
   Clock01Icon,
@@ -31,8 +33,8 @@ import {
   GlobeIcon,
   GoogleGeminiIcon,
   Grok02Icon,
+  Image01Icon,
   MistralIcon,
-  Message01Icon,
   Mic01Icon,
   MoonIcon,
   PlugIcon,
@@ -99,15 +101,23 @@ export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-export function AiStatusBarControls() {
+export function AiComposerActions({ composer = false }: { composer?: boolean }) {
   const c = useComposer();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const openMini = useChatStore((s) => s.openMini);
-  const miniOpen = useChatStore((s) => s.mini.open);
-  const closePanel = useChatStore((s) => s.closePanel);
+  const [attachOpen, setAttachOpen] = useState(false);
+
+  const voiceTitle =
+    c.voice.unavailableReason ??
+    (c.voice.recording
+      ? "停止录音"
+      : c.voice.transcribing
+        ? "正在转录…"
+        : "语音输入");
+
+  const btnClass = composer ? "size-7 rounded-full" : undefined;
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className={cn("flex items-center", composer ? "gap-1" : "gap-0.5")}>
       <input
         ref={fileInputRef}
         type="file"
@@ -120,32 +130,64 @@ export function AiStatusBarControls() {
         }}
       />
 
-      <IconBtn
-        title="附加文件或图片"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={c.isBusy}
-      >
-        <HugeiconsIcon icon={Add01Icon} size={13} strokeWidth={2} />
-      </IconBtn>
+      <DropdownMenu open={attachOpen} onOpenChange={setAttachOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            title="附加文件或截图"
+            disabled={c.isBusy}
+            className={cn(
+              "size-6 rounded-md text-muted-foreground hover:text-foreground",
+              btnClass,
+            )}
+          >
+            <HugeiconsIcon icon={Attachment01Icon} size={13} strokeWidth={2} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-40 text-[12px]">
+          <DropdownMenuItem
+            disabled={c.isBusy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <HugeiconsIcon icon={Add01Icon} size={14} strokeWidth={1.75} />
+            附加文件
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={c.isBusy}
+            onClick={() => void c.pasteFromClipboard()}
+          >
+            <HugeiconsIcon icon={Image01Icon} size={14} strokeWidth={1.75} />
+            粘贴截图
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={c.isBusy}
+            onClick={() => void c.captureScreenshot()}
+          >
+            <HugeiconsIcon icon={Camera01Icon} size={14} strokeWidth={1.75} />
+            截取屏幕
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {c.voice.supported && (
         <IconBtn
-          title={
-            !c.voice.hasKey
-              ? "语音需要 OpenAI 密钥"
-              : c.voice.recording
-                ? "停止并转录"
-                : c.voice.transcribing
-                  ? "正在转录…"
-                  : "语音输入"
-          }
-          onClick={() =>
-            c.voice.recording ? c.voice.stop() : void c.voice.start()
-          }
-          disabled={c.isBusy || c.voice.transcribing || !c.voice.hasKey}
+          title={voiceTitle}
+          onClick={() => {
+            if (!c.voice.ready) {
+              void openSettingsWindow("general");
+              return;
+            }
+            if (c.voice.recording) c.voice.stop();
+            else void c.voice.requestStart();
+          }}
+          disabled={c.isBusy || c.voice.transcribing}
           className={cn(
+            composer && "size-7 rounded-full",
+            !c.voice.ready && "opacity-50",
             c.voice.recording &&
-            "bg-destructive/10 text-destructive hover:bg-destructive/15",
+              "bg-destructive/10 text-destructive hover:bg-destructive/15",
           )}
         >
           {c.voice.recording ? (
@@ -158,36 +200,13 @@ export function AiStatusBarControls() {
         </IconBtn>
       )}
 
-      <ModelDropdown />
-
-      <span className="mx-1 h-8 w-px bg-border" aria-hidden />
-      <Button
-        onClick={closePanel}
-        title="关闭 AI 面板"
-        size="xs"
-        variant="ghost"
-        aria-label="关闭 AI 面板"
-        className="text-[15px] text-foreground/85 px-1"
-      >
-        <Kbd className="h-4 gap-px px-2 font-mono text-[13px]">
-          {fmtShortcut(MOD_KEY, "I")}
-        </Kbd>
-      </Button>
-      <IconBtn
-        title={miniOpen ? "弹出窗口已打开" : "弹出对话窗口"}
-        onClick={openMini}
-        disabled={miniOpen}
-      >
-        <HugeiconsIcon icon={Message01Icon} size={13} strokeWidth={1.75} />
-      </IconBtn>
-
       {c.isBusy ? (
         <Button
           type="button"
           size="icon"
-          variant="ghost"
+          variant={composer ? "outline" : "ghost"}
           onClick={c.stop}
-          className="size-6"
+          className={cn(composer ? "size-7 rounded-full" : "size-6")}
           aria-label="停止"
           title="停止"
         >
@@ -199,7 +218,11 @@ export function AiStatusBarControls() {
           size="icon"
           onClick={c.submit}
           disabled={!c.canSend}
-          className="h-5.5 w-7.5 ml-1"
+          className={cn(
+            composer
+              ? "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+              : "h-5.5 w-7.5 ml-1",
+          )}
           aria-label="发送"
           title="发送 (Enter)"
         >
@@ -210,9 +233,38 @@ export function AiStatusBarControls() {
   );
 }
 
+export function AiStatusBarControls() {
+  const panelOpen = useChatStore((s) => s.panelOpen);
+  const togglePanel = useChatStore((s) => s.togglePanel);
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {!panelOpen ? (
+        <>
+          <AiComposerActions />
+          <span className="mx-1 h-8 w-px bg-border" aria-hidden />
+        </>
+      ) : null}
+
+      <Button
+        onClick={togglePanel}
+        title={panelOpen ? "关闭 AI 面板" : "打开 AI 面板"}
+        size="xs"
+        variant="ghost"
+        aria-label={panelOpen ? "关闭 AI 面板" : "打开 AI 面板"}
+        className="text-[13px] text-foreground/85 px-1"
+      >
+        <Kbd className="h-4 gap-px px-2 font-mono text-[13px]">
+          {fmtShortcut(MOD_KEY, "I")}
+        </Kbd>
+      </Button>
+    </div>
+  );
+}
+
 type Tab = "all" | "favorites" | "recent";
 
-function ModelDropdown() {
+export function ModelDropdown({ composer = false }: { composer?: boolean }) {
   const selected = useChatStore((s) => s.selectedModelId);
   const apiKeys = useChatStore((s) => s.apiKeys);
   const setSelected = useChatStore((s) => s.setSelectedModelId);
@@ -273,10 +325,12 @@ function ModelDropdown() {
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          variant="ghost"
+          variant={composer ? "outline" : "ghost"}
           size="sm"
           className={cn(
-            "h-5.5 gap-1 rounded-md px-1.5 my-1 text-xs hover:bg-accent hover:text-foreground",
+            composer
+              ? "h-7 max-w-[10rem] gap-1 rounded-full border-border/70 bg-muted/40 px-2.5 text-xs font-normal shadow-none hover:bg-muted/70"
+              : "h-5.5 gap-1 rounded-md px-1.5 my-1 text-xs hover:bg-accent hover:text-foreground",
             currentProviderHasKey
               ? "text-muted-foreground"
               : "text-amber-600 dark:text-amber-400",
@@ -287,7 +341,7 @@ function ModelDropdown() {
               : `${current.label} — 未配置密钥`
           }
         >
-          {current.label}
+          <span className="truncate">{current.label}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             size={11}
@@ -434,7 +488,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[15px] transition-colors",
+        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] transition-colors",
         active
           ? "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -511,7 +565,7 @@ function ProviderConfigureCTA({ providerId }: { providerId: ProviderId }) {
       <span className="flex-1 truncate">
         Configure {p.label} to use these models.
       </span>
-      <span className="shrink-0 text-[15px] underline-offset-2 group-hover:underline">
+      <span className="shrink-0 text-[13px] underline-offset-2 group-hover:underline">
         Open
       </span>
     </button>
@@ -580,7 +634,7 @@ function ModelRow({
       ) : null}
 
       <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
-        <span className="shrink-0 text-[15px] font-medium leading-none">
+        <span className="shrink-0 text-[13px] font-medium leading-none">
           {model.label}
         </span>
         <span className="truncate text-[13px] leading-none text-muted-foreground">

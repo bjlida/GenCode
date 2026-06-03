@@ -39,6 +39,9 @@ export type EditorTab = {
    * is replaced by the next single-click rather than accumulating.
    */
   preview: boolean;
+  /** One-shot view hint for .md tabs (e.g. context-menu "打开预览"). */
+  markdownView?: "preview" | "source";
+  markdownViewSeq?: number;
 };
 
 export type PreviewTab = {
@@ -223,9 +226,21 @@ export function useTabs(initial?: Partial<TerminalTab>) {
    *   reused: if a persistent tab for the path already exists it is activated;
    *   otherwise the current preview slot is replaced with the new path.
    */
-  const openFileTab = useCallback((path: string, pin = true) => {
+  const openFileTab = useCallback(
+    (
+      path: string,
+      pin = true,
+      opts?: { markdownView?: "preview" | "source" },
+    ) => {
     let targetId: number | null = null;
     setTabs((curr) => {
+      const markdownPatch =
+        opts?.markdownView !== undefined
+          ? {
+              markdownView: opts.markdownView,
+              markdownViewSeq: Date.now(),
+            }
+          : {};
       if (pin) {
         // Persistent open: find any existing editor tab, pin it if needed.
         const existing = curr.find(
@@ -233,9 +248,15 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (existing) {
           targetId = existing.id;
-          if ((existing as EditorTab).preview) {
+          if ((existing as EditorTab).preview || opts?.markdownView) {
             return curr.map((t) =>
-              t.id === existing.id ? { ...t, preview: false } : t,
+              t.id === existing.id
+                ? {
+                    ...t,
+                    preview: false,
+                    ...markdownPatch,
+                  }
+                : t,
             );
           }
           return curr;
@@ -251,6 +272,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
             path,
             dirty: false,
             preview: false,
+            ...markdownPatch,
           } satisfies EditorTab,
         ];
       } else {
@@ -261,6 +283,11 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (persistent) {
           targetId = persistent.id;
+          if (opts?.markdownView) {
+            return curr.map((t) =>
+              t.id === persistent.id ? { ...t, ...markdownPatch } : t,
+            );
+          }
           return curr;
         }
         // Reuse the slot if it already shows the same path.
@@ -270,6 +297,11 @@ export function useTabs(initial?: Partial<TerminalTab>) {
         );
         if (existingPreview) {
           targetId = existingPreview.id;
+          if (opts?.markdownView) {
+            return curr.map((t) =>
+              t.id === existingPreview.id ? { ...t, ...markdownPatch } : t,
+            );
+          }
           return curr;
         }
         // Replace the current preview slot, or append a new one.
@@ -285,6 +317,7 @@ export function useTabs(initial?: Partial<TerminalTab>) {
           path,
           dirty: false,
           preview: true,
+          ...markdownPatch,
         };
         if (previewIdx === -1) return [...curr, tab];
         const next = [...curr];
@@ -294,7 +327,9 @@ export function useTabs(initial?: Partial<TerminalTab>) {
     });
     if (targetId !== null) setActiveId(targetId);
     return targetId as number | null;
-  }, []);
+  },
+  [],
+);
 
   /**
    * Promotes a preview tab to a persistent one. Called on double-click of the

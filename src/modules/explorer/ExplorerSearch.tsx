@@ -25,7 +25,7 @@ import {
 } from "react";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { fileIconUrl } from "./lib/iconResolver";
-import { copyToClipboard, revealInFinder } from "./lib/contextActions";
+import { copyToClipboard, revealInFinder, terminalCwdForPath } from "./lib/contextActions";
 import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
 import { cn } from "@/lib/utils";
 
@@ -283,10 +283,12 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                           打开
                         </ContextMenuItem>
                       )}
-                      {hit.is_dir && onRevealInTerminal && (
+                      {onRevealInTerminal && (
                         <ContextMenuItem
                           className={COMPACT_ITEM}
-                          onSelect={() => onRevealInTerminal(hit.path)}
+                          onSelect={() =>
+                            onRevealInTerminal(terminalCwdForPath(hit.path, hit.is_dir))
+                          }
                         >
                           在终端中打开
                         </ContextMenuItem>
@@ -309,7 +311,7 @@ export const ExplorerSearch = forwardRef<ExplorerSearchHandle, Props>(function E
                         className={COMPACT_ITEM}
                         onSelect={() => onAttachToAgent?.(hit.path)}
                       >
-                        附加到 Agent
+                        附加到 AI 面板
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>

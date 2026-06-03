@@ -41,7 +41,7 @@ export function SnippetPickerContent({
     >
       {items.length === 0 ? (
         <div className="px-3 py-2.5 text-[13px] text-muted-foreground">
-          无匹配项。在设置 → 代理中添加代码片段。
+          无匹配项。在设置 → Agent 中添加代码片段。
         </div>
       ) : (
         <div className="max-h-72 overflow-y-auto py-1">
@@ -89,7 +89,7 @@ export function SnippetPickerContent({
                         onMouseEnter={() => onHover(i)}
                         onClick={() => onPick(it)}
                         className={cn(
-                          "flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[15px]",
+                          "flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[13px]",
                           i === activeIndex
                             ? "bg-accent"
                             : "hover:bg-accent/60",
@@ -142,7 +142,7 @@ function renderCommand(
         onMouseEnter={() => onHover(i)}
         onClick={() => onPick({ kind: "command", command: c })}
         className={cn(
-          "flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[15px]",
+          "flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left text-[13px]",
           i === activeIndex ? "bg-accent" : "hover:bg-accent/60",
         )}
       >

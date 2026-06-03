@@ -58,7 +58,7 @@ export function PlanDiffReview() {
     <div className="absolute inset-0 z-10 flex flex-col bg-background/85 backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-border/40 px-3 py-2">
         <div className="flex flex-col">
-          <span className="text-[15px] font-semibold tracking-tight">
+          <span className="text-[13px] font-semibold tracking-tight">
             计划审查
           </span>
           <span className="text-[13px] text-muted-foreground">
@@ -70,7 +70,7 @@ export function PlanDiffReview() {
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 gap-1.5 text-[15px] hover:bg-destructive/10 hover:text-destructive"
+            className="h-7 gap-1.5 text-[13px] hover:bg-destructive/10 hover:text-destructive"
             onClick={() => clear()}
             disabled={busy}
           >
@@ -80,7 +80,7 @@ export function PlanDiffReview() {
           <Button
             type="button"
             size="sm"
-            className="h-7 gap-1.5 text-[15px]"
+            className="h-7 gap-1.5 text-[13px]"
             onClick={onApply}
             disabled={busy}
           >
@@ -145,7 +145,7 @@ function PlanRow({
               {basename(item.path)}
             </span>
             {isNew ? (
-              <span className="text-[15px] text-emerald-600 dark:text-emerald-400">
+              <span className="text-[13px] text-emerald-600 dark:text-emerald-400">
                 新建
               </span>
             ) : null}
@@ -154,7 +154,7 @@ function PlanRow({
             {item.path}
           </div>
           {stats ? (
-            <div className="mt-0.5 flex items-center gap-2 text-[15px] tabular-nums">
+            <div className="mt-0.5 flex items-center gap-2 text-[13px] tabular-nums">
               <span className="text-emerald-600 dark:text-emerald-400">
                 +{stats.added}
               </span>

@@ -32,7 +32,13 @@ const ICONS: Record<AgentIconId, typeof CodeIcon> = {
   spark: SparklesIcon,
 };
 
-export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
+export function AgentSwitcher({
+  isMiniWindow,
+  variant = "default",
+}: {
+  isMiniWindow?: boolean;
+  variant?: "default" | "composer";
+}) {
   // Subscribe to customAgents + activeId so the trigger updates live.
   const customAgents = useAgentsStore((s) => s.customAgents);
   const activeId = useAgentsStore((s) => s.activeId);
@@ -53,11 +59,13 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           size="xs"
           variant="outline"
           className={cn(
-            !isMiniWindow
-              ? "flex h-6 items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 text-[13px] text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
-              : "text-xs mr-1",
+            variant === "composer"
+              ? "flex h-7 items-center gap-1 rounded-full border border-border/70 bg-muted/40 px-2.5 text-[13px] text-muted-foreground shadow-none transition-colors hover:border-border hover:bg-muted/70 hover:text-foreground"
+              : !isMiniWindow
+                ? "flex h-6 items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 text-[13px] text-muted-foreground transition-colors hover:border-border hover:bg-accent hover:text-foreground"
+                : "text-xs mr-1",
           )}
-          title={`代理：${active.name}`}
+          title={`Agent：${active.name}`}
         >
           <HugeiconsIcon icon={ActiveIcon} size={11} strokeWidth={1.75} />
           <span className="max-w-[7rem] truncate">{active.name}</span>
@@ -80,7 +88,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
               key={a.id}
               onSelect={() => setActiveId(a.id)}
               className={cn(
-                "flex items-start gap-2 pr-2 text-[15px]",
+                "flex items-start gap-2 pr-2 text-[13px]",
                 a.id === activeId && "bg-accent/40",
               )}
             >
@@ -125,7 +133,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
                   key={a.id}
                   onSelect={() => setActiveId(a.id)}
                   className={cn(
-                    "flex items-start gap-2 text-[15px]",
+                    "flex items-start gap-2 text-[13px]",
                     a.id === activeId && "bg-accent/40",
                   )}
                 >
@@ -162,7 +170,7 @@ export function AgentSwitcher({ isMiniWindow }: { isMiniWindow?: boolean }) {
           className="gap-2 text-[13px] text-muted-foreground"
         >
           <HugeiconsIcon icon={Settings01Icon} size={12} strokeWidth={1.75} />
-          管理代理…
+          管理 Agent…
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -53,7 +53,7 @@ export function ClaudeCodeLauncher({ workspaceRoot, cwd, onSpawned, onClose }: P
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center gap-2">
         <HugeiconsIcon icon={ClaudeIcon} size={16} strokeWidth={1.75} />
-        <span className="text-[15px] font-semibold">启动 Claude Code Agent</span>
+        <span className="text-[13px] font-semibold">启动 Claude Code Agent</span>
       </div>
 
       <div>
@@ -71,7 +71,7 @@ export function ClaudeCodeLauncher({ workspaceRoot, cwd, onSpawned, onClose }: P
           }}
           placeholder="例如：修复 src/auth.ts 中的登录逻辑 bug"
           rows={3}
-          className="mt-1 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-[14px] font-mono outline-none placeholder:text-muted-foreground/60"
+          className="mt-1 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-[13px] font-mono outline-none placeholder:text-muted-foreground/60"
           autoFocus
         />
       </div>

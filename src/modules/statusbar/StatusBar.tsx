@@ -24,7 +24,6 @@ type Props = {
   home: string | null;
   onCd: (path: string) => void;
   onWorkspaceChange: (env: WorkspaceEnv) => void;
-  onOpenMini: () => void;
   /** Only rendered when the AI panel is open and a key is loaded. */
   hasComposer: boolean;
   privateActive: boolean;
@@ -37,12 +36,17 @@ export function StatusBar({
   home,
   onCd,
   onWorkspaceChange,
-  onOpenMini,
   hasComposer,
   privateActive,
 }: Props) {
   const panelOpen = useChatStore((s) => s.panelOpen);
   const openPanel = useChatStore((s) => s.openPanel);
+  const focusInput = useChatStore((s) => s.focusInput);
+
+  const openAgentPanel = () => {
+    openPanel();
+    focusInput(null);
+  };
 
   return (
     <footer className="flex h-8 shrink-0 items-center justify-between gap-3 border-t border-border/30 bg-card/50 px-3 text-[13px] supports-[backdrop-filter]:backdrop-blur-xl">
@@ -52,12 +56,12 @@ export function StatusBar({
         {privateActive ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="flex shrink-0 cursor-default items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[15px] font-medium text-amber-700 dark:text-amber-400">
+              <span className="flex shrink-0 cursor-default items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[13px] font-medium text-amber-700 dark:text-amber-400">
                 <HugeiconsIcon icon={IncognitoIcon} size={11} strokeWidth={2} />
                 <span>隐私模式：对 AI 不可见</span>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-64 text-[15px] leading-relaxed">
+            <TooltipContent side="top" className="max-w-64 text-[13px] leading-relaxed">
               AI 无法看到此终端的输出。可用于密钥、SSH 或任何不想发送给模型的内容。
             </TooltipContent>
           </Tooltip>
@@ -70,11 +74,11 @@ export function StatusBar({
           </span>
         ) : null}
         <ClaudeCodeStatus />
-        <AgentStatusPill onClick={onOpenMini} />
+        <AgentStatusPill onClick={openAgentPanel} />
         {panelOpen && hasComposer ? (
           <AiStatusBarControls />
         ) : (
-          <AiOpenButton onOpen={openPanel} />
+          <AiOpenButton onOpen={openAgentPanel} />
         )}
       </div>
     </footer>

@@ -148,7 +148,7 @@ export function ClaudeCodeSection() {
                       className="mt-0.5 accent-primary"
                     />
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[14px] font-medium">{SOURCE_LABELS[key]}</span>
+                      <span className="text-[13px] font-medium">{SOURCE_LABELS[key]}</span>
                       <span className="text-[13px] text-muted-foreground leading-relaxed">
                         {SOURCE_DESCRIPTIONS[key]}
                       </span>
@@ -164,7 +164,7 @@ export function ClaudeCodeSection() {
             <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">
               运行状态</h3>
             <div className="rounded-xl border border-border/30 bg-card/60 p-4">
-              <dl className="grid grid-cols-[100px_1fr] gap-y-2 text-[14px]">
+              <dl className="grid grid-cols-[100px_1fr] gap-y-2 text-[13px]">
                 <dt className="text-muted-foreground">Claude Code</dt>
                 <dd className="font-mono text-[13px] flex items-center gap-2">
                   {status?.installed
@@ -246,7 +246,7 @@ export function ClaudeCodeSection() {
               API 密钥
             </h3>
             <div className="rounded-xl border border-border/30 bg-card/60 p-4">
-              <p className="text-[14px] text-muted-foreground">
+              <p className="text-[13px] text-muted-foreground">
                 Claude Code 使用灵码ADE AI 设置中配置的 Anthropic API
                 密钥。如果已经设置了密钥，无需额外配置。
               </p>
@@ -259,17 +259,17 @@ export function ClaudeCodeSection() {
               使用说明
             </h3>
             <div className="rounded-xl border border-border/30 bg-card/60 p-4">
-              <ul className="list-disc pl-5 text-[14px] text-muted-foreground space-y-1">
+              <ul className="list-disc pl-5 text-[13px] text-muted-foreground space-y-1">
                 <li>
                   打开 AI 面板，使用{" "}
                   <code className="text-[13px] font-mono bg-muted px-1 rounded">
                     /claude-code
                   </code>{" "}
-                  启动 Claude Code 代理
+                  启动 Claude Code
                 </li>
                 <li>
-                  Claude Code 拥有对工作区、文件、终端和配置（包括代理 /
-                  MCP / Skills）的完整访问权限
+                  Claude Code 拥有对工作区、文件、终端和配置（包括 Agent /
+                  MCP / Claude 技能）的完整访问权限
                 </li>
                 <li>
                   上述配置的 MCP 服务器可用于 Claude Code 会话

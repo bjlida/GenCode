@@ -43,7 +43,7 @@ export function SettingsApp() {
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground select-none">
       <header
         data-tauri-drag-region
-        className={`flex h-10 shrink-0 items-center border-b border-border/50 bg-card shadow-sm ${IS_MAC ? "pr-3 pl-22" : "pr-3 pl-3"
+        className={`flex h-header shrink-0 items-center border-b border-border/50 bg-card shadow-sm ${IS_MAC ? "pr-3 pl-22" : "pr-3 pl-3"
           }`}
       >
         <Tabs

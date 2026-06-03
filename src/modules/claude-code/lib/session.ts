@@ -72,3 +72,7 @@ export async function getConfig(key: string): Promise<unknown> {
 export async function setConfig(key: string, value: unknown): Promise<void> {
   return invoke("claude_code_set_config", { key, value });
 }
+
+export async function ensureChineseLocale(): Promise<void> {
+  return invoke("claude_code_ensure_locale");
+}

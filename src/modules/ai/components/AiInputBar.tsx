@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useComposer, type FileAttachment } from "../lib/composer";
 import { useWorkspaceFiles } from "../hooks/useWorkspaceFiles";
 import { SLASH_COMMANDS } from "../lib/slashCommands";
@@ -19,6 +19,10 @@ import { CC_SLASH_COMMANDS } from "@/modules/claude-code/lib/commands";
 import type { Snippet } from "../lib/snippets";
 import { useChatStore } from "../store/chatStore";
 import { useSnippetsStore } from "../store/snippetsStore";
+import {
+  AiComposerActions,
+  ModelDropdown,
+} from "./AiStatusBarControls";
 import { AgentSwitcher } from "./AgentSwitcher";
 import { FilePickerContent } from "./FilePicker";
 import { SnippetPickerContent, type PickerItem } from "./SnippetPicker";
@@ -228,25 +232,59 @@ export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
   };
 
   const voiceLabel = c.voice.recording
-    ? "正在录音…"
+    ? c.voice.liveTranscript || "正在聆听…"
     : c.voice.transcribing
       ? "正在转录…"
       : null;
+
+  const [dragOver, setDragOver] = useState(false);
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const dt = e.clipboardData;
+      if (!dt) return;
+      const hasImage =
+        Array.from(dt.items).some(
+          (item) => item.kind === "file" && item.type.startsWith("image/"),
+        ) ||
+        Array.from(dt.files).some((f) => f.type.startsWith("image/"));
+      if (!hasImage) return;
+      e.preventDefault();
+      void c.addFilesFromDataTransfer(dt);
+    },
+    [c],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      if (c.isBusy) return;
+      void c.addFilesFromDataTransfer(e.dataTransfer);
+    },
+    [c],
+  );
 
   return (
     <div
       className={cn(
         "shrink-0",
-        embedded
-          ? "border-t border-border/50 bg-transparent px-2 py-2"
-          : "border-t border-border/60 bg-card/40 px-3 py-2",
+        embedded ? "bg-transparent px-3 pb-3 pt-2" : "bg-card/40 px-3 py-3",
       )}
     >
       <div
         className={cn(
-          "flex flex-col gap-1.5 rounded-lg px-1 py-1",
-          "transition-colors focus-within:border-border",
+          "flex flex-col gap-2 rounded-2xl border border-border/70 bg-background p-3 shadow-sm",
+          "transition-[border-color,box-shadow] focus-within:border-border focus-within:shadow-md",
+          "focus-within:ring-1 focus-within:ring-ring/15",
+          dragOver && "border-primary/50 bg-primary/5 ring-1 ring-primary/20",
         )}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!c.isBusy) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
       >
         <ChipsRow
           files={c.files}
@@ -265,63 +303,61 @@ export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
 
         <Popover open={pickerOpen}>
           <PopoverAnchor asChild>
-            <div className="flex items-start gap-2">
-              <textarea
-                ref={c.textareaRef}
-                value={c.value}
-                onChange={(e) => c.setValue(e.target.value)}
-                onKeyUp={updateTrigger}
-                onClick={updateTrigger}
-                onSelect={updateTrigger}
-                onKeyDown={(e) => {
-                  if (pickerOpen) {
-                    const items = fileTrigger ? filteredFiles : filteredItems;
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setActiveIndex((i) =>
-                        Math.min(i + 1, Math.max(0, items.length - 1)),
-                      );
-                      return;
-                    }
-                    if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setActiveIndex((i) => Math.max(0, i - 1));
-                      return;
-                    }
-                    if (e.key === "Tab" || e.key === "Enter") {
-                      if (items.length > 0) {
-                        e.preventDefault();
-                        pickActive();
-                        return;
-                      }
-                    }
-                    if (e.key === "Escape") {
-                      e.preventDefault();
-                      if (fileTrigger) {
-                        const before = c.value.slice(0, fileTrigger.start);
-                        const after = c.value.slice(fileTrigger.end);
-                        c.setValue(`${before}${after}`);
-                        setFileTrigger(null);
-                      } else {
-                        setTrigger(null);
-                      }
-                      return;
-                    }
-                  }
-                  if (e.key === "Enter" && !e.shiftKey) {
+            <textarea
+              ref={c.textareaRef}
+              value={c.value}
+              onChange={(e) => c.setValue(e.target.value)}
+              onPaste={handlePaste}
+              onKeyUp={updateTrigger}
+              onClick={updateTrigger}
+              onSelect={updateTrigger}
+              onKeyDown={(e) => {
+                if (pickerOpen) {
+                  const items = fileTrigger ? filteredFiles : filteredItems;
+                  if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    c.submit();
+                    setActiveIndex((i) =>
+                      Math.min(i + 1, Math.max(0, items.length - 1)),
+                    );
+                    return;
                   }
-                }}
-                placeholder="向灵码ADE 提问   -   # 片段和命令, @ 文件"
-                rows={1}
-                className={cn(
-                  "max-h-40 flex-1 resize-none bg-transparent text-[15px] leading-relaxed outline-none",
-                  "placeholder:text-muted-foreground/60",
-                )}
-              />
-              <AgentSwitcher />
-            </div>
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIndex((i) => Math.max(0, i - 1));
+                    return;
+                  }
+                  if (e.key === "Tab" || e.key === "Enter") {
+                    if (items.length > 0) {
+                      e.preventDefault();
+                      pickActive();
+                      return;
+                    }
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (fileTrigger) {
+                      const before = c.value.slice(0, fileTrigger.start);
+                      const after = c.value.slice(fileTrigger.end);
+                      c.setValue(`${before}${after}`);
+                      setFileTrigger(null);
+                    } else {
+                      setTrigger(null);
+                    }
+                    return;
+                  }
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  c.submit();
+                }
+              }}
+              placeholder="规划、构建，/ Agent，@ 上下文，拖放或粘贴截图"
+              rows={1}
+              className={cn(
+                "min-h-[2.75rem] w-full max-h-40 resize-none bg-transparent text-[13px] leading-relaxed outline-none",
+                "placeholder:text-muted-foreground/55",
+              )}
+            />
           </PopoverAnchor>
           {fileTrigger ? (
             <FilePickerContent
@@ -352,7 +388,7 @@ export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.12 }}
-              className="flex items-center gap-1.5 px-1 text-[13px] text-muted-foreground"
+              className="flex items-center gap-1.5 text-[13px] text-muted-foreground"
             >
               {c.voice.recording ? (
                 <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
@@ -363,6 +399,14 @@ export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <AgentSwitcher variant="composer" />
+            <ModelDropdown composer />
+          </div>
+          <AiComposerActions composer />
+        </div>
       </div>
     </div>
   );
@@ -396,7 +440,7 @@ function ChipsRow({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.12 }}
-            className="group flex items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 py-0.5 text-[15px]"
+            className="group flex items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 py-0.5 text-[13px]"
             title={cmd.label}
           >
             <HugeiconsIcon
@@ -424,7 +468,7 @@ function ChipsRow({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.12 }}
-            className="group flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[15px] text-primary"
+            className="group flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[13px] text-primary"
             title={s.description || s.name}
           >
             <HugeiconsIcon
@@ -452,7 +496,7 @@ function ChipsRow({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.12 }}
-            className="group flex items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 py-0.5 text-[15px]"
+            className="group flex items-center gap-1 rounded-md border border-border/60 bg-card px-1.5 py-0.5 text-[13px]"
           >
             {f.kind === "image" && f.url ? (
               <img src={f.url} alt="" className="size-4 rounded object-cover" />

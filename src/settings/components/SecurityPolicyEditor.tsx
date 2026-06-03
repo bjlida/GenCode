@@ -89,7 +89,7 @@ export function SecurityPolicyEditor() {
     return (
       <div className="flex flex-col gap-6">
         <SectionHeader title="Security Policy" description="" />
-        <p className="text-[14px] text-muted-foreground">加载中...</p>
+        <p className="text-[13px] text-muted-foreground">加载中...</p>
       </div>
     );
   }
@@ -106,7 +106,7 @@ export function SecurityPolicyEditor() {
     <div className="flex flex-col gap-6">
       <SectionHeader
         title="安全策略"
-        description="控制 AI 代理可以访问的系统资源"
+        description="控制 AI Agent 可以访问的系统资源"
       />
 
       {error && (
@@ -124,7 +124,7 @@ export function SecurityPolicyEditor() {
               key={key}
               type="button"
               onClick={() => applyPreset(key)}
-              className={`text-left rounded-lg border px-3 py-2 text-[14px] transition-colors ${
+              className={`text-left rounded-lg border px-3 py-2 text-[13px] transition-colors ${
                 policy.preset_name && presetMatches(key, policy.preset_name)
                   ? "border-primary bg-primary/5"
                   : "border-border/30 bg-card/60 hover:bg-muted/50"
@@ -144,7 +144,7 @@ export function SecurityPolicyEditor() {
           type="text"
           value={policy.workspace_root}
           onChange={(e) => setPolicy({ ...policy, workspace_root: e.target.value })}
-          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+          className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
           placeholder="/home/user/project"
         />
       </section>
@@ -155,7 +155,7 @@ export function SecurityPolicyEditor() {
           需要审批的操作        </h3>
         <div className="flex flex-col gap-1.5">
           {approvalCategories.map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 text-[14px]">
+            <label key={key} className="flex items-center gap-2 text-[13px]">
               <input
                 type="checkbox"
                 checked={policy.require_approval_for.includes(key)}
@@ -183,7 +183,7 @@ export function SecurityPolicyEditor() {
               onChange={(e) =>
                 setPolicy({ ...policy, max_file_size_mb: parseInt(e.target.value) || 0 })
               }
-              className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+              className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               min={0}
             />
           </div>
@@ -196,7 +196,7 @@ export function SecurityPolicyEditor() {
               onChange={(e) =>
                 setPolicy({ ...policy, max_process_count: parseInt(e.target.value) || 0 })
               }
-              className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+              className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               min={0}
             />
           </div>

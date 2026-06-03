@@ -6,12 +6,24 @@ import {
   useRef,
   useState,
 } from "react";
-import { useWhisperRecording } from "../hooks/useWhisperRecording";
+import { toast } from "sonner";
+import { useVoiceRecording } from "../hooks/useVoiceRecording";
+import { VoicePermissionDialog } from "../components/VoicePermissionDialog";
 import { expandSnippetTokens, type Snippet } from "../lib/snippets";
 import { tryRunSlashCommand, type SlashCommandMeta } from "./slashCommands";
+import { getModel, modelSupportsVision } from "../config";
 import { getOrCreateChat, useChatStore } from "../store/chatStore";
 import { useSnippetsStore } from "../store/snippetsStore";
 import { currentWorkspaceEnv } from "@/modules/workspace";
+import {
+  attachmentId,
+  blobToDataUrl,
+  captureDisplayScreenshot,
+  clipboardImageFiles,
+  isImagePath,
+  MAX_IMAGE_BYTES,
+  screenshotName,
+} from "./attachments";
 
 export type FileAttachment = {
   id: string;
@@ -33,7 +45,7 @@ export const MAX_TEXT_INLINE = 200_000;
 export const ACCEPTED_FILES =
   "image/*,.txt,.md,.json,.yaml,.yml,.toml,.sh,.zsh,.bash,.py,.js,.jsx,.ts,.tsx,.rs,.go,.java,.c,.cpp,.h,.hpp,.html,.css,.csv,.log,.env,.config,.conf,.ini,Dockerfile,.dockerfile";
 
-type Voice = ReturnType<typeof useWhisperRecording>;
+type Voice = ReturnType<typeof useVoiceRecording>;
 
 type ComposerCtx = {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -41,6 +53,10 @@ type ComposerCtx = {
   setValue: React.Dispatch<React.SetStateAction<string>>;
   files: FileAttachment[];
   addFiles: (list: FileList | null) => Promise<void>;
+  addFilesFromDataTransfer: (data: DataTransfer) => Promise<boolean>;
+  addImageBlob: (blob: Blob, name: string, mediaType?: string) => Promise<void>;
+  pasteFromClipboard: () => Promise<boolean>;
+  captureScreenshot: () => Promise<boolean>;
   /** Attach a file by absolute path — used by the file explorer's "Attach to Agent". */
   attachFileByPath: (path: string) => Promise<void>;
   removeFile: (id: string) => void;
@@ -80,6 +96,10 @@ export function AiComposerProvider({ children }: ProviderProps) {
   const [pickedSnippets, setPickedSnippets] = useState<Snippet[]>([]);
   const [pickedCommands, setPickedCommands] = useState<SlashCommandMeta[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const focusSignal = useChatStore((s) => s.focusSignal);
   const pendingPrefill = useChatStore((s) => s.pendingPrefill);
@@ -145,9 +165,13 @@ export function AiComposerProvider({ children }: ProviderProps) {
     });
   }, [pendingSelections, consumeSelections]);
 
-  const voice = useWhisperRecording({
-    onResult: (transcript: string) => {
-      setValue((v) => (v ? `${v} ${transcript}` : transcript));
+  const voice = useVoiceRecording({
+    onRecordingStart: () => valueRef.current,
+    onLiveUpdate: (fullText) => {
+      setValue(fullText);
+    },
+    onResult: (transcript) => {
+      setValue(transcript);
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
   });
@@ -159,7 +183,92 @@ export function AiComposerProvider({ children }: ProviderProps) {
       const att = await readAttachment(f);
       if (att) next.push(att);
     }
-    if (next.length) setFiles((prev) => [...prev, ...next]);
+    if (next.length) {
+      setFiles((prev) => [...prev, ...next]);
+      useChatStore.getState().focusInput();
+    }
+  };
+
+  const addFilesFromDataTransfer = async (
+    data: DataTransfer,
+  ): Promise<boolean> => {
+    const images = clipboardImageFiles(data);
+    if (images.length > 0) {
+      for (const file of images) {
+        await addImageBlob(file, file.name || screenshotName(), file.type);
+      }
+      return true;
+    }
+    if (data.files.length > 0) {
+      await addFiles(data.files);
+      return true;
+    }
+    return false;
+  };
+
+  const addImageBlob = async (
+    blob: Blob,
+    name: string,
+    mediaType = "image/png",
+  ) => {
+    if (blob.size > MAX_IMAGE_BYTES) {
+      toast.error("图片过大", {
+        description: `上限 ${Math.round(MAX_IMAGE_BYTES / (1024 * 1024))} MB。`,
+      });
+      return;
+    }
+    const url = await blobToDataUrl(blob);
+    const att: FileAttachment = {
+      id: attachmentId(name, blob.size),
+      name,
+      kind: "image",
+      mediaType: blob.type || mediaType,
+      url,
+      size: blob.size,
+    };
+    setFiles((prev) => [...prev, att]);
+    useChatStore.getState().focusInput();
+  };
+
+  const pasteFromClipboard = async (): Promise<boolean> => {
+    try {
+      if (navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (!type.startsWith("image/")) continue;
+            const blob = await item.getType(type);
+            await addImageBlob(blob, screenshotName(), type);
+            return true;
+          }
+        }
+      }
+    } catch {
+      // Fall through to legacy path below.
+    }
+    toast.message("剪贴板中没有图片", {
+      description: "请先截图（如 Win+Shift+S）或使用「截取屏幕」。",
+    });
+    return false;
+  };
+
+  const captureScreenshot = async (): Promise<boolean> => {
+    try {
+      const shot = await captureDisplayScreenshot();
+      if (!shot) {
+        toast.error("无法截取屏幕", {
+          description: "当前环境不支持屏幕捕获。",
+        });
+        return false;
+      }
+      await addImageBlob(shot.blob, shot.name);
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/abort|cancel/i.test(msg)) return false;
+      toast.error("截图失败", { description: msg });
+      return false;
+    }
   };
 
   const removeFile = (id: string) =>
@@ -181,6 +290,34 @@ export function AiComposerProvider({ children }: ProviderProps) {
 
   const attachFileByPath = async (path: string) => {
     try {
+      if (isImagePath(path)) {
+        type DataUrlResult = {
+          data_url: string;
+          media_type: string;
+          size: number;
+        };
+        const result = await invoke<DataUrlResult>("fs_read_file_data_url", {
+          path,
+          workspace: currentWorkspaceEnv(),
+        });
+        const name = path.split(/[\\/]/).pop() || path;
+        const id = `path-${path}`;
+        setFiles((prev) => {
+          if (prev.some((f) => f.id === id)) return prev;
+          const att: FileAttachment = {
+            id,
+            name,
+            kind: "image",
+            mediaType: result.media_type,
+            url: result.data_url,
+            size: result.size,
+          };
+          return [...prev, att];
+        });
+        useChatStore.getState().focusInput();
+        return;
+      }
+
       type ReadResult =
         | { kind: "text"; content: string; size: number }
         | { kind: "binary"; size: number }
@@ -190,8 +327,12 @@ export function AiComposerProvider({ children }: ProviderProps) {
         workspace: currentWorkspaceEnv(),
       });
       if (result.kind !== "text") {
-        // Binary/oversize files: skip (could surface a toast in future).
-        console.warn("attachFileByPath: skipped non-text file", path, result);
+        toast.error("无法附加此文件", {
+          description:
+            result.kind === "binary"
+              ? "二进制文件请改用图片格式，或通过「附加文件」上传。"
+              : `文件超过 ${Math.round(result.limit / (1024 * 1024))} MB 上限。`,
+        });
         return;
       }
       const name = path.split("/").pop() || path;
@@ -211,7 +352,9 @@ export function AiComposerProvider({ children }: ProviderProps) {
       // Open the AI panel & focus the input so the user sees the chip.
       useChatStore.getState().focusInput();
     } catch (e) {
-      console.error("attachFileByPath failed:", e);
+      toast.error("附加文件失败", {
+        description: e instanceof Error ? e.message : String(e),
+      });
     }
   };
 
@@ -237,8 +380,11 @@ export function AiComposerProvider({ children }: ProviderProps) {
     if (commandSource.startsWith("/") || commandSource.startsWith("#")) {
       const outcome = tryRunSlashCommand(commandSource);
       if (outcome.kind === "handled") {
-        setValue("");
-        if (outcome.toast) console.info(outcome.toast);
+        if (!outcome.preserveInput) {
+          setValue("");
+          setPickedCommands([]);
+        }
+        if (outcome.toast) toast.message(outcome.toast);
         return;
       }
       if (outcome.kind === "send-prompt") {
@@ -303,14 +449,34 @@ export function AiComposerProvider({ children }: ProviderProps) {
       }
     }
 
+    const hasImages = parts.some(
+      (p) => p.type === "file" && p.mediaType.startsWith("image/"),
+    );
+    if (hasImages) {
+      const store = useChatStore.getState();
+      const modelId = store.selectedModelId;
+      if (!modelSupportsVision(modelId)) {
+        const model = getModel(modelId);
+        store.patchAgentMeta({
+          attachmentNotice: `当前模型「${model.label}」不支持图片输入。请切换到带「视觉」能力的模型，或移除图片附件后再发送。`,
+        });
+        if (!store.panelOpen) store.openPanel();
+        return;
+      }
+    }
+
     if (!sessionId) return;
     const chat = getOrCreateChat(sessionId);
     void chat.sendMessage({ role: "user", parts } as Parameters<
       typeof chat.sendMessage
     >[0]);
     const store = useChatStore.getState();
-    store.patchAgentMeta({ hitStepCap: false, compactionNotice: null });
-    if (!store.mini.open) store.openMini();
+    store.patchAgentMeta({
+      hitStepCap: false,
+      compactionNotice: null,
+      attachmentNotice: null,
+    });
+    if (!store.panelOpen) store.openPanel();
     setValue("");
     setFiles([]);
     setPickedSnippets([]);
@@ -337,6 +503,10 @@ export function AiComposerProvider({ children }: ProviderProps) {
     setValue,
     files,
     addFiles,
+    addFilesFromDataTransfer,
+    addImageBlob,
+    pasteFromClipboard,
+    captureScreenshot,
     attachFileByPath,
     removeFile,
     pickedSnippets,
@@ -352,13 +522,28 @@ export function AiComposerProvider({ children }: ProviderProps) {
     canSend,
   };
 
-  return <Ctx.Provider value={ctx}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={ctx}>
+      {children}
+      <VoicePermissionDialog
+        open={voice.permissionDialogOpen}
+        denied={voice.permissionDenied}
+        requesting={voice.permissionRequesting}
+        onConfirm={() => void voice.confirmPermission()}
+        onCancel={voice.dismissPermission}
+      />
+    </Ctx.Provider>
+  );
 }
 
 async function readAttachment(file: File): Promise<FileAttachment | null> {
-  const id = `${file.name}-${file.size}-${file.lastModified}`;
+  const id = attachmentId(file.name, file.size, file.lastModified);
   if (file.type.startsWith("image/")) {
-    const url = await readAsDataURL(file);
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error("图片过大", { description: file.name });
+      return null;
+    }
+    const url = await blobToDataUrl(file);
     return {
       id,
       name: file.name,
@@ -368,7 +553,10 @@ async function readAttachment(file: File): Promise<FileAttachment | null> {
       size: file.size,
     };
   }
-  if (file.size > MAX_TEXT_INLINE) return null;
+  if (file.size > MAX_TEXT_INLINE) {
+    toast.error("文件过大", { description: file.name });
+    return null;
+  }
   const text = await file.text();
   return {
     id,
@@ -378,13 +566,4 @@ async function readAttachment(file: File): Promise<FileAttachment | null> {
     text,
     size: file.size,
   };
-}
-
-function readAsDataURL(file: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }

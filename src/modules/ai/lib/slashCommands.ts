@@ -13,7 +13,7 @@ import { usePlanStore } from "../store/planStore";
  * - `"none"`: not a slash command; let the composer behave as usual.
  */
 export type SlashOutcome =
-  | { kind: "handled"; toast?: string }
+  | { kind: "handled"; toast?: string; preserveInput?: boolean }
   | { kind: "send-prompt"; prompt: string; commandName?: string }
   | { kind: "none" };
 
@@ -76,7 +76,7 @@ export const SLASH_COMMANDS: Record<string, SlashCommandMeta> = {
     invocation: "/claude-code",
     label: "委托给 Claude Code",
     description:
-      "将复杂工程任务委托给 Claude Code 代理执行，AI 作为协调者而非实施者。",
+      "将复杂工程任务委托给 Claude Code 执行，AI 作为协调者而非实施者。",
     icon: ClaudeIcon,
     source: "ai",
   },
@@ -120,7 +120,11 @@ export function tryRunSlashCommand(input: string): SlashOutcome {
     }
     case "claude-code": {
       if (!tail) {
-        return { kind: "handled", toast: "用法: /claude-code <请求内容>" };
+        return {
+          kind: "handled",
+          toast: "请补充任务说明，例如：/claude-code 修复登录页的 401 错误",
+          preserveInput: true,
+        };
       }
       return {
         kind: "send-prompt",

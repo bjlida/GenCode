@@ -1,7 +1,7 @@
 import { ensureMonoFontsLoaded } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import type { SearchAddon } from "@xterm/addon-search";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { DormantRing } from "./dormantRing";
 import {
   createShellIntegrationState,
@@ -180,7 +180,27 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     }
   })();
 
+  startPtyIfNeeded(leafId, session);
   return session;
+}
+
+function startPtyIfNeeded(leafId: number, s: Session): void {
+  if (s.pty || s.ptyOpening || s.shellExited || s.disposed) return;
+  s.ptyOpening = true;
+  openPtyForSession(leafId, s, s.initialCwd)
+    .then((pty) => {
+      s.ptyOpening = false;
+      if (s.disposed) {
+        pty.close();
+        return;
+      }
+      s.pty = pty;
+      if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
+    })
+    .catch((e) => {
+      s.ptyOpening = false;
+      console.error("[gencode] openPty failed:", e);
+    });
 }
 
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
@@ -284,24 +304,7 @@ function attachSession(
   s.container = container;
 
   if (s.visibleNow) bindLeafToSlot(leafId, s);
-
-  if (!s.pty && !s.ptyOpening && !s.shellExited) {
-    s.ptyOpening = true;
-    openPtyForSession(leafId, s, s.initialCwd)
-      .then((pty) => {
-        s.ptyOpening = false;
-        if (s.disposed) {
-          pty.close();
-          return;
-        }
-        s.pty = pty;
-        if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
-      })
-      .catch((e) => {
-        s.ptyOpening = false;
-        console.error("[gencode] openPty failed:", e);
-      });
-  }
+  startPtyIfNeeded(leafId, s);
 }
 
 function detachSession(leafId: number): void {
@@ -395,10 +398,20 @@ export function useTerminalSession({
   const cbRef = useRef({ onSearchReady, onExit, onCwd });
   cbRef.current = { onSearchReady, onExit, onCwd };
 
-  useEffect(() => {
+  // OSC 7 updates pane `cwd` on every prompt; that must not re-run attach (which
+  // clear()+reset() xterm) or the shell prompt disappears with only a cursor.
+  const spawnCwdRef = useRef(initialCwd);
+  const spawnCwdLeafRef = useRef<number | null>(null);
+  if (spawnCwdLeafRef.current !== leafId) {
+    spawnCwdLeafRef.current = leafId;
+    spawnCwdRef.current = initialCwd;
+  }
+
+  useLayoutEffect(() => {
     let cancelled = false;
-    const s = ensureSession(leafId, initialCwd);
-    s.ready.then(() => {
+    const s = ensureSession(leafId, spawnCwdRef.current);
+
+    const tryAttach = () => {
       if (cancelled || s.disposed) return;
       const node = container.current;
       if (!node) return;
@@ -408,12 +421,16 @@ export function useTerminalSession({
         onCwd: (c) => cbRef.current.onCwd?.(c),
       });
       if (s.visibleNow && s.focusedNow) focusSlot(leafId);
-    });
+    };
+
+    void s.ready.then(tryAttach);
+    tryAttach();
+
     return () => {
       cancelled = true;
       detachSession(leafId);
     };
-  }, [leafId, container, initialCwd]);
+  }, [leafId, container]);
 
   const fontSize = usePreferencesStore((p) => p.terminalFontSize);
   const zoomLevel = usePreferencesStore((p) => p.zoomLevel);

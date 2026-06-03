@@ -25,12 +25,12 @@ type Props = {
 
 function relativeTime(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return "just now";
+  if (s < 60) return "刚刚";
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return `${m} 分钟前`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return `${h} 小时前`;
+  return `${Math.floor(h / 24)} 天前`;
 }
 
 function StatusRow({
@@ -62,7 +62,7 @@ function StatusRow({
         )}
       >
         {waiting ? <span className="size-1.5 rounded-full bg-primary" /> : null}
-        {waiting ? "waiting" : "working"}
+        {waiting ? "等待中" : "工作中"}
       </span>
     </button>
   );
@@ -185,16 +185,16 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
         <Button
           variant="ghost"
           size="icon"
-          className="relative size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="代理通知"
+          className="relative size-8 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="运行通知"
         >
           <HugeiconsIcon
             icon={Notification01Icon}
-            size={16}
+            size={18}
             strokeWidth={1.75}
           />
           {badge > 0 ? (
-            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[15px] font-semibold leading-none text-primary-foreground">
+            <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 text-[13px] font-semibold leading-none text-primary-foreground">
               {badge > 9 ? "9+" : badge}
             </span>
           ) : null}
@@ -203,24 +203,24 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-80 overflow-hidden p-0 gap-0.5"
+        className="min-w-72 w-80 overflow-hidden p-0 gap-0.5"
       >
         <div className="flex h-10 items-center px-3 pt-0.5">
-          <span className="flex gap-1 text-[15px] text-foreground">
-            Notifications
+          <span className="flex gap-1 text-[13px] text-foreground">
+            通知
           </span>
           {activeCount > 0 ? (
             <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[13px] font-medium tabular-nums text-muted-foreground">
-              {activeCount} active
+              {activeCount} 个运行中
             </span>
           ) : null}
         </div>
 
         {empty ? (
           <div className="border-t border-border/60 px-3 py-5 text-center text-xs leading-relaxed text-muted-foreground">
-            No agent activity yet.
+            暂无运行活动。
             <br />
-            Run the 灵码ADE agent or Claude Code to track it here.
+            使用 AI Agent 或 Claude Code 后，可在此跟踪状态。
           </div>
         ) : (
           <div className="max-h-80 overflow-y-auto border-t border-border/60 p-1">
@@ -252,36 +252,36 @@ export function NotificationBell({ onActivate, onActivateLocal }: Props) {
           </div>
         )}
 
-        <div className="border-t flex justify-center border-border/60 p-1">
+        <div className="flex flex-col border-t border-border/60 p-1">
           {hooksReady ? (
-            <div className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-muted-foreground">
+            <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1.5 text-[13px] text-muted-foreground">
               <HugeiconsIcon
                 icon={CheckmarkCircle02Icon}
                 size={13}
                 strokeWidth={1.75}
-                className="text-primary"
+                className="shrink-0 text-primary"
               />
-              Claude Code alerts enabled
+              Claude Code 通知已开启
             </div>
           ) : (
             <button
               type="button"
               onClick={enableClaudeHooks}
               disabled={installing}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
+              className="flex w-full items-center gap-2 whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-60"
             >
               <HugeiconsIcon
                 icon={installing ? Loading03Icon : Notification03Icon}
                 size={14}
                 strokeWidth={1.75}
-                className={cn(installing && "animate-spin")}
+                className={cn("shrink-0", installing && "animate-spin")}
               />
-              {installing ? "Enabling..." : "Enable Claude Code alerts"}
+              {installing ? "正在启用…" : "启用 Claude Code 通知"}
             </button>
           )}
           {hooksReady === false && !installing ? (
-            <p className="px-2 pt-1 text-[15px] text-destructive">
-              Could not update Claude Code config.
+            <p className="whitespace-normal break-words px-2 pb-1 pt-0.5 text-[13px] leading-snug text-destructive">
+              无法更新 Claude Code 配置。
             </p>
           ) : null}
         </div>

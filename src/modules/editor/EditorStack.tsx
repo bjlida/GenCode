@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { MarkdownEditorPane } from "@/modules/markdown/MarkdownEditorPane";
+import { isMarkdownPath } from "@/modules/markdown/lib/isMarkdownPath";
 import type { EditorTab, Tab } from "@/modules/tabs";
 import { useEffect, useRef } from "react";
 import { EditorPane, type EditorCursorPosition, type EditorPaneHandle } from "./EditorPane";
@@ -10,6 +12,7 @@ type Props = {
   registerHandle: (id: number, handle: EditorPaneHandle | null) => void;
   onCloseTab: (id: number) => void;
   onCursorChange?: (id: number, pos: EditorCursorPosition | null) => void;
+  onFormat?: (id: number) => void;
 };
 
 export function EditorStack({
@@ -19,6 +22,7 @@ export function EditorStack({
   registerHandle,
   onCloseTab,
   onCursorChange,
+  onFormat,
 }: Props) {
   const editors = tabs.filter((t): t is EditorTab => t.kind === "editor");
 
@@ -29,6 +33,7 @@ export function EditorStack({
   const registerRef = useRef(registerHandle);
   const dirtyRef = useRef(onDirtyChange);
   const closeRef = useRef(onCloseTab);
+  const formatRef = useRef(onFormat);
   useEffect(() => {
     registerRef.current = registerHandle;
   }, [registerHandle]);
@@ -38,12 +43,16 @@ export function EditorStack({
   useEffect(() => {
     closeRef.current = onCloseTab;
   }, [onCloseTab]);
+  useEffect(() => {
+    formatRef.current = onFormat;
+  }, [onFormat]);
 
   const refCallbacks = useRef(
     new Map<number, (h: EditorPaneHandle | null) => void>(),
   );
   const dirtyCallbacks = useRef(new Map<number, (dirty: boolean) => void>());
   const closeCallbacks = useRef(new Map<number, () => void>());
+  const formatCallbacks = useRef(new Map<number, () => void>());
 
   const getRefCallback = (id: number) => {
     let cb = refCallbacks.current.get(id);
@@ -66,6 +75,14 @@ export function EditorStack({
     if (!cb) {
       cb = () => closeRef.current(id);
       closeCallbacks.current.set(id, cb);
+    }
+    return cb;
+  };
+  const getFormatCallback = (id: number) => {
+    let cb = formatCallbacks.current.get(id);
+    if (!cb) {
+      cb = () => formatRef.current?.(id);
+      formatCallbacks.current.set(id, cb);
     }
     return cb;
   };
@@ -95,6 +112,9 @@ export function EditorStack({
     for (const id of closeCallbacks.current.keys()) {
       if (!live.has(id)) closeCallbacks.current.delete(id);
     }
+    for (const id of formatCallbacks.current.keys()) {
+      if (!live.has(id)) formatCallbacks.current.delete(id);
+    }
     for (const id of cursorCallbacks.current.keys()) {
       if (!live.has(id)) cursorCallbacks.current.delete(id);
     }
@@ -114,15 +134,30 @@ export function EditorStack({
             )}
             aria-hidden={!visible}
           >
-            <div className="h-full overflow-hidden rounded-md border border-border/30 bg-background">
-              <EditorPane
+            {isMarkdownPath(t.path) ? (
+              <MarkdownEditorPane
                 ref={getRefCallback(t.id)}
                 path={t.path}
+                viewHint={t.markdownView}
+                viewHintSeq={t.markdownViewSeq}
+                visible={visible}
                 onDirtyChange={getDirtyCallback(t.id)}
                 onClose={getCloseCallback(t.id)}
                 onCursorChange={getCursorCallback(t.id)}
+                onFormat={getFormatCallback(t.id)}
               />
-            </div>
+            ) : (
+              <div className="h-full overflow-hidden rounded-md border border-border/30 bg-background">
+                <EditorPane
+                  ref={getRefCallback(t.id)}
+                  path={t.path}
+                  onDirtyChange={getDirtyCallback(t.id)}
+                  onClose={getCloseCallback(t.id)}
+                  onCursorChange={getCursorCallback(t.id)}
+                  onFormat={getFormatCallback(t.id)}
+                />
+              </div>
+            )}
           </div>
         );
       })}

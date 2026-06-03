@@ -1,22 +1,16 @@
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { memo, useState } from "react";
+import { memo } from "react";
+import { ExplorerContextMenuItems } from "./ExplorerContextMenuItems";
 import { InlineInput } from "./InlineInput";
-import {
-  copyToClipboard,
-  relativePath,
-  revealInFinder,
-} from "./lib/contextActions";
 import { fileIconUrl, folderIconUrl } from "./lib/iconResolver";
-import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
+import { COMPACT_CONTENT } from "./lib/menuItemClass";
 import type { useFileTree } from "./lib/useFileTree";
 
 type Tree = ReturnType<typeof useFileTree>;
@@ -38,10 +32,6 @@ export type EntryRowProps = {
   onOpenMarkdownPreview?: (path: string) => void;
 };
 
-function isMarkdownPath(path: string): boolean {
-  return /\.(md|markdown|mdx)$/i.test(path);
-}
-
 function EntryRowImpl(props: EntryRowProps) {
   const {
     path,
@@ -60,9 +50,9 @@ function EntryRowImpl(props: EntryRowProps) {
     onOpenMarkdownPreview,
   } = props;
 
-  const [isConfirming, setIsConfirming] = useState(false);
   const iconUrl = isDir ? folderIconUrl(name, isExpanded) : fileIconUrl(name);
   const createTarget = isDir ? path : path.slice(0, path.lastIndexOf("/")) || rootPath;
+  const pasteTarget = createTarget;
   const paddingLeft = 6 + depth * 12;
 
   const handleClick = () => {
@@ -77,7 +67,7 @@ function EntryRowImpl(props: EntryRowProps) {
       <ContextMenuTrigger asChild>
         {isRenaming ? (
           <div
-            className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[15px]"
+            className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
             style={{ paddingLeft }}
           >
             <span className="size-3.5 shrink-0" />
@@ -132,85 +122,18 @@ function EntryRowImpl(props: EntryRowProps) {
           if (tree.renaming || tree.pendingCreate) e.preventDefault();
         }}
       >
-        {!isDir && (
-          <ContextMenuItem
-            className={COMPACT_ITEM}
-            onSelect={() => onOpenFile(path, true)}
-          >
-            打开
-          </ContextMenuItem>
-        )}
-        {!isDir && isMarkdownPath(path) && onOpenMarkdownPreview && (
-          <ContextMenuItem
-            className={COMPACT_ITEM}
-            onSelect={() => onOpenMarkdownPreview(path)}
-          >
-            打开预览
-          </ContextMenuItem>
-        )}
-        {isDir && onRevealInTerminal && (
-          <ContextMenuItem
-            className={COMPACT_ITEM}
-            onSelect={() => onRevealInTerminal(path)}
-          >
-            在终端中打开
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => void revealInFinder(path)}
-        >
-          在资源管理器中显示
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => tree.beginCreate(createTarget, "file")}
-        >
-          新建文件
-        </ContextMenuItem>
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => tree.beginCreate(createTarget, "dir")}
-        >
-          新建文件夹
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => void copyToClipboard(path)}
-        >
-          复制路径
-        </ContextMenuItem>
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => void copyToClipboard(relativePath(rootPath, path))}
-        >
-          复制相对路径
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          onSelect={() => onAttachToAgent?.(path)}
-        >
-          附加到 Agent
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          className={COMPACT_ITEM}
-          variant="destructive"
-          onSelect={(e) => {
-            e.preventDefault();
-            if (isConfirming) {
-              void tree.deletePath(path);
-            } else {
-              setIsConfirming(true);
-            }
-          }}
-          onMouseLeave={() => setTimeout(() => setIsConfirming(false), 1500)}
-        >
-          {isConfirming ? "再次点击确认删除" : "删除"}
-        </ContextMenuItem>
+        <ExplorerContextMenuItems
+          path={path}
+          rootPath={rootPath}
+          isDir={isDir}
+          tree={tree}
+          pasteTargetDir={pasteTarget}
+          createTargetDir={createTarget}
+          onOpenFile={onOpenFile}
+          onOpenMarkdownPreview={onOpenMarkdownPreview}
+          onRevealInTerminal={onRevealInTerminal}
+          onAttachToAgent={onAttachToAgent}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -228,7 +151,7 @@ export type PendingRowProps = {
 export function PendingRow({ depth, kind, onCommit, onCancel }: PendingRowProps) {
   return (
     <div
-      className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[15px]"
+      className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
       style={{ paddingLeft: 6 + depth * 12 }}
     >
       <span className="size-3.5 shrink-0" />
@@ -259,7 +182,7 @@ export function StatusRow({
   return (
     <div
       className={cn(
-        "h-6 truncate px-2 text-[15px] leading-6",
+        "h-6 truncate px-2 text-[13px] leading-6",
         tone === "error" ? "text-destructive" : "text-muted-foreground",
       )}
       style={{ paddingLeft: 6 + depth * 12 + 18 }}

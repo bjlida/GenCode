@@ -62,31 +62,19 @@ pub fn build_command(
     }
 }
 
-fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
-    let is_utf8 = |v: &str| {
-        let up = v.to_ascii_uppercase();
-        up.contains("UTF-8") || up.contains("UTF8")
-    };
-    let already_utf8 = ["LC_ALL", "LC_CTYPE", "LANG"]
-        .iter()
-        .any(|k| std::env::var(k).ok().as_deref().is_some_and(is_utf8));
-    if already_utf8 {
-        return;
-    }
-    #[cfg(target_os = "macos")]
-    let fallback = "en_US.UTF-8";
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let fallback = "C.UTF-8";
-    #[cfg(windows)]
-    let fallback = "en_US.UTF-8";
-    cmd.env("LANG", fallback);
+fn apply_chinese_locale(cmd: &mut CommandBuilder) {
+    const LOCALE: &str = "zh_CN.UTF-8";
+    cmd.env("LANG", LOCALE);
+    cmd.env("LC_ALL", LOCALE);
+    #[cfg(unix)]
+    cmd.env("LC_MESSAGES", LOCALE);
 }
 
 fn apply_common(cmd: &mut CommandBuilder, cwd: Option<String>) {
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("GENCODE_TERMINAL", "1");
-    ensure_utf8_locale(cmd);
+    apply_chinese_locale(cmd);
 
     let resolved_cwd = cwd
         .map(PathBuf::from)
@@ -408,7 +396,7 @@ mod windows {
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
         cmd.env("GENCODE_TERMINAL", "1");
-        super::ensure_utf8_locale(&mut cmd);
+        super::apply_chinese_locale(&mut cmd);
         log::info!("spawning WSL shell: {distro} ({shell_path})");
         Ok(cmd)
     }

@@ -792,7 +792,7 @@ function PanelCenter({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-      <div className="text-sm font-medium">{title}</div>
+      <div className="text-[13px] font-medium">{title}</div>
       {body ? (
         <div className="max-w-64 text-[11.5px] leading-relaxed text-muted-foreground">
           {body}

@@ -123,7 +123,7 @@ export function UpdaterDialog() {
                   key={d.key}
                   type="button"
                   onClick={() => setDistro(d.key)}
-                  className={`flex-1 rounded px-2 py-1 text-[15px] transition-colors ${
+                  className={`flex-1 rounded px-2 py-1 text-[13px] transition-colors ${
                     distro === d.key
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -138,7 +138,7 @@ export function UpdaterDialog() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[15px]"
+                className="h-7 px-2 text-[13px]"
                 onClick={() => void copyCommand()}
               >
                 {copied ? "已复制" : "复制"}

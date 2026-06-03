@@ -2,6 +2,7 @@ use std::path::Path;
 use std::time::UNIX_EPOCH;
 use std::{fs, io::Write};
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
 use tauri::Emitter;
 use tempfile::NamedTempFile;
@@ -9,6 +10,7 @@ use tempfile::NamedTempFile;
 use crate::modules::workspace::{WorkspaceEnv, WorkspaceRegistry};
 
 const MAX_READ_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+const MAX_IMAGE_DATA_URL_BYTES: u64 = 5 * 1024 * 1024; // 5 MB
 const BINARY_SNIFF_BYTES: usize = 8 * 1024;
 
 #[derive(Serialize)]
@@ -88,6 +90,68 @@ pub fn fs_read_file(
 ) -> Result<ReadResult, String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     fs_read_file_impl(&path, &workspace, &registry)
+}
+
+#[derive(Serialize)]
+pub struct DataUrlResult {
+    pub data_url: String,
+    pub media_type: String,
+    pub size: u64,
+}
+
+fn image_media_type(path: &Path) -> Option<&'static str> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    match ext.as_str() {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "bmp" => Some("image/bmp"),
+        "svg" => Some("image/svg+xml"),
+        "ico" => Some("image/x-icon"),
+        _ => None,
+    }
+}
+
+fn fs_read_file_data_url_impl(
+    path: &str,
+    workspace: &WorkspaceEnv,
+    registry: &WorkspaceRegistry,
+) -> Result<DataUrlResult, String> {
+    let p = super::require_authorized(registry, workspace, path)?;
+    let media_type = image_media_type(&p).ok_or_else(|| {
+        "仅支持 PNG、JPEG、GIF、WebP、BMP、SVG、ICO 图片。".to_string()
+    })?;
+    let meta = std::fs::metadata(&p).map_err(|e| {
+        log::debug!("fs_read_file_data_url stat({}) failed: {e}", p.display());
+        e.to_string()
+    })?;
+    let size = meta.len();
+    if size > MAX_IMAGE_DATA_URL_BYTES {
+        return Err(format!(
+            "图片过大（{size} 字节，上限 {MAX_IMAGE_DATA_URL_BYTES} 字节）。"
+        ));
+    }
+    let bytes = std::fs::read(&p).map_err(|e| {
+        log::debug!("fs_read_file_data_url read({}) failed: {e}", p.display());
+        e.to_string()
+    })?;
+    let encoded = STANDARD.encode(bytes);
+    Ok(DataUrlResult {
+        data_url: format!("data:{media_type};base64,{encoded}"),
+        media_type: media_type.to_string(),
+        size,
+    })
+}
+
+#[tauri::command]
+pub fn fs_read_file_data_url(
+    path: String,
+    workspace: Option<WorkspaceEnv>,
+    registry: tauri::State<'_, WorkspaceRegistry>,
+) -> Result<DataUrlResult, String> {
+    let workspace = WorkspaceEnv::from_option(workspace);
+    fs_read_file_data_url_impl(&path, &workspace, &registry)
 }
 
 #[derive(Serialize, Clone)]

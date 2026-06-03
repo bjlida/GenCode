@@ -203,12 +203,12 @@ export const PreviewAddressBar = forwardRef<PreviewAddressBarHandle, Props>(
         </Button>
       </div>
       {notice ? (
-        <div className="flex items-center gap-1.5 bg-amber-500/8 px-3 py-1 text-[15px] text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-1.5 bg-amber-500/8 px-3 py-1 text-[13px] text-amber-600 dark:text-amber-400">
           <span className="truncate">{notice}</span>
           <button
             type="button"
             onClick={() => setNotice(null)}
-            className="ml-auto rounded px-1 text-[15px] opacity-80 hover:bg-accent hover:opacity-100"
+            className="ml-auto rounded px-1 text-[13px] opacity-80 hover:bg-accent hover:opacity-100"
           >
             Dismiss
           </button>

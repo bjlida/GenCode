@@ -516,7 +516,7 @@ export function GitHistoryPane({
           </CenterPlaceholder>
         ) : loadStatus === "error" && commits.length === 0 ? (
           <CenterPlaceholder>
-            <div className="text-[15px] font-medium">
+            <div className="text-[13px] font-medium">
               无法加载历史记录
             </div>
             <div className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
@@ -528,7 +528,7 @@ export function GitHistoryPane({
           </CenterPlaceholder>
         ) : commits.length === 0 ? (
           <CenterPlaceholder>
-            <div className="text-[15px] font-medium">暂无提交记录</div>
+            <div className="text-[13px] font-medium">暂无提交记录</div>
             <div className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
               此分支尚无任何提交。
             </div>
@@ -603,12 +603,12 @@ export function GitHistoryPane({
                 </div>
               ) : null}
               {loadStatus === "error" && commits.length > 0 ? (
-                <div className="flex items-center justify-center gap-2 py-3 text-[15px] text-destructive">
+                <div className="flex items-center justify-center gap-2 py-3 text-[13px] text-destructive">
                   {error ?? "加载更多失败"}
                   <Button
                     size="xs"
                     variant="ghost"
-                    className="h-6 cursor-pointer text-[15px]"
+                    className="h-6 cursor-pointer text-[13px]"
                     onClick={() => void loadMore()}
                   >
                     重试
@@ -731,7 +731,7 @@ const CommitRow = memo(function CommitRow({
       </span>
       <span
         className={cn(
-          "min-w-0 truncate text-[15px] leading-tight",
+          "min-w-0 truncate text-[13px] leading-tight",
           active
             ? "font-semibold text-foreground"
             : "font-medium text-foreground/95",
@@ -745,7 +745,7 @@ const CommitRow = memo(function CommitRow({
       </span>
       <span aria-hidden />
       <span
-        className="ml-2 inline-flex h-[18px] max-w-full min-w-0 items-center gap-1.5 justify-self-start self-center overflow-hidden rounded-md bg-foreground/6 pl-1 pr-1.5 text-[15px] font-medium text-foreground/85"
+        className="ml-2 inline-flex h-[18px] max-w-full min-w-0 items-center gap-1.5 justify-self-start self-center overflow-hidden rounded-md bg-foreground/6 pl-1 pr-1.5 text-[13px] font-medium text-foreground/85"
         title={commit.authorEmail || commit.author}
       >
         <span
@@ -842,7 +842,7 @@ function CommitDetail({
           <span className="mt-px shrink-0 rounded bg-muted/65 px-1.5 py-0.5 font-mono text-[13px] leading-none tabular-nums text-muted-foreground">
             {commit.shortSha}
           </span>
-          <div className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-foreground">
+          <div className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
             {commit.subject || (
               <span className="text-muted-foreground">(no subject)</span>
             )}
@@ -929,12 +929,12 @@ function CommitFiles({
   }
   if (filesEntry.state === "error") {
     return (
-      <div className="flex items-center justify-between gap-2 px-3 py-3 text-[15px] text-destructive">
+      <div className="flex items-center justify-between gap-2 px-3 py-3 text-[13px] text-destructive">
         <span className="truncate">{filesEntry.error}</span>
         <Button
           size="xs"
           variant="ghost"
-          className="h-6 cursor-pointer text-[15px]"
+          className="h-6 cursor-pointer text-[13px]"
           onClick={onRetry}
         >
           重试
@@ -995,7 +995,7 @@ const FileRow = memo(function FileRow({
         <span className="size-3.5 shrink-0" />
       )}
       <div className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-none">
-        <span className="truncate text-[15px] font-medium leading-tight">
+        <span className="truncate text-[13px] font-medium leading-tight">
           {fileName}
         </span>
         {dir ? (
@@ -1004,7 +1004,7 @@ const FileRow = memo(function FileRow({
           </span>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-1 text-[15px] tabular-nums">
+      <div className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums">
         {file.isBinary ? (
           <span className="text-muted-foreground/70">binary</span>
         ) : (
@@ -1024,7 +1024,7 @@ const FileRow = memo(function FileRow({
       </div>
       <span
         className={cn(
-          "inline-flex w-4 shrink-0 justify-center text-[15px] font-bold leading-none tabular-nums",
+          "inline-flex w-4 shrink-0 justify-center text-[13px] font-bold leading-none tabular-nums",
           statusTone(file.status),
         )}
         title={file.statusLabel}

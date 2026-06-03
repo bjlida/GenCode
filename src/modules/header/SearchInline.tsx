@@ -147,7 +147,7 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
       <motion.div
         layout
         initial={false}
-        animate={{ width: expanded ? (showReplace && target?.kind === "editor" ? 320 : 192) : 28 }}
+        animate={{ width: expanded ? (showReplace && target?.kind === "editor" ? 320 : 192) : 32 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
         className="relative shrink-0"
       >
@@ -161,18 +161,18 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
               transition={{ duration: 0.12 }}
               className="flex flex-col gap-1"
             >
-              <div className="relative h-7 w-full">
+              <div className="relative h-8 w-full">
               <HugeiconsIcon
                 icon={Search01Icon}
-                size={13}
+                size={15}
                 strokeWidth={1.75}
-                className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 ref={setInputRef}
                 value={q}
                 placeholder={placeholder}
-                className="h-7 w-full bg-muted/80 pr-7 pl-7 text-[13px]! placeholder:text-muted-foreground/70 focus-visible:ring-0"
+                className="h-8 w-full bg-muted/80 pr-8 pl-8 text-[13px]! placeholder:text-muted-foreground/70 focus-visible:ring-0"
                 onChange={(e) => {
                   const next = e.target.value;
                   setQ(next);
@@ -217,7 +217,7 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
                 >
                   <HugeiconsIcon
                     icon={Cancel01Icon}
-                    size={11}
+                    size={12}
                     strokeWidth={2}
                   />
                 </button>
@@ -227,7 +227,7 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
                 <Input
                   value={replaceQ}
                   placeholder="替换为…"
-                  className="h-7 w-full bg-muted/80 text-[13px]! focus-visible:ring-0"
+                  className="h-8 w-full bg-muted/80 text-[13px]! focus-visible:ring-0"
                   onChange={(e) => {
                     const next = e.target.value;
                     setReplaceQ(next);
@@ -255,13 +255,13 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="size-8 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
                 onClick={focus}
                 title={tooltipTitle}
               >
                 <HugeiconsIcon
                   icon={Search01Icon}
-                  size={15}
+                  size={17}
                   strokeWidth={1.75}
                 />
               </Button>

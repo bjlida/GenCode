@@ -44,7 +44,7 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 px-2.5 text-[15px] font-medium"
+            className="h-8 gap-1.5 px-2.5 text-[13px] font-medium"
             onClick={onOpenSettings}
           >
             <HugeiconsIcon icon={Settings01Icon} size={12} strokeWidth={2} />
@@ -72,7 +72,7 @@ export function ShortcutsDialog({ open, onOpenChange }: Props) {
                           key={s.id}
                           className="flex items-center justify-between py-2"
                         >
-                          <span className="text-sm text-foreground/90">
+                          <span className="text-[13px] text-foreground/90">
                             {s.label}
                           </span>
                           {tokens.length > 0 ? (

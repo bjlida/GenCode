@@ -45,6 +45,7 @@ type Live = {
     prompt: string,
     sessionId: string,
   ) => { tabId: number; leafId: number } | null;
+  openClaudeCodeTerminal: () => { tabId: number; leafId: number } | null;
   readLeafBuffer: (leafId: number) => string | null;
 };
 
@@ -65,6 +66,8 @@ export type AgentMeta = {
   lastCachedTokens: number;
   hitStepCap: boolean;
   compactionNotice: { droppedCount: number; at: number } | null;
+  /** Shown in chat when send is blocked (e.g. images on a non-vision model). */
+  attachmentNotice: string | null;
 };
 
 const ZERO_USAGE: AgentUsage = {
@@ -83,6 +86,7 @@ const IDLE_META: AgentMeta = {
   lastCachedTokens: 0,
   hitStepCap: false,
   compactionNotice: null,
+  attachmentNotice: null,
 };
 
 export type MiniState = {
@@ -165,6 +169,7 @@ const NOOP_LIVE: Live = {
   getActiveFile: () => null,
   openPreview: () => false,
   spawnManagedAgent: () => null,
+  openClaudeCodeTerminal: () => null,
   readLeafBuffer: () => null,
 };
 
@@ -352,7 +357,7 @@ export const useChatStore = create<StoreState>((set, get) => ({
   },
 
   mini: { open: false },
-  openMini: () => set({ mini: { open: true }, panelOpen: true }),
+  openMini: () => set({ panelOpen: true }),
   closeMini: () => set({ mini: { open: false } }),
   toggleMini: () => set((s) => ({ mini: { open: !s.mini.open } })),
 

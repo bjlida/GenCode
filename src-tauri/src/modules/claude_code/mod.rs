@@ -145,6 +145,13 @@ pub async fn claude_code_kill(
 // ---- Config commands ----
 
 #[tauri::command]
+pub async fn claude_code_ensure_locale() -> Result<(), String> {
+    tokio::task::spawn_blocking(config::ensure_chinese_locale)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn claude_code_get_config(key: String) -> Result<Option<serde_json::Value>, String> {
     config::get_config_value(&key)
 }

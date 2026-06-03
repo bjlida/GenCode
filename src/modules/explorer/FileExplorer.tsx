@@ -2,8 +2,6 @@ import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -27,13 +25,15 @@ import {
   useState,
 } from "react";
 import { ExplorerSearch, type ExplorerSearchHandle } from "./ExplorerSearch";
+import { ExplorerEmptyContextMenuItems } from "./ExplorerContextMenuItems";
 import { EntryRow, PendingRow, StatusRow } from "./TreeRow";
 import { InlineInput } from "./InlineInput";
-import { copyToClipboard, revealInFinder } from "./lib/contextActions";
 import { fileIconUrl, folderIconUrl } from "./lib/iconResolver";
-import { COMPACT_CONTENT, COMPACT_ITEM } from "./lib/menuItemClass";
+import { COMPACT_CONTENT } from "./lib/menuItemClass";
+import { canPasteAt, getExplorerClipboard } from "./lib/explorerClipboard";
 import { useFileTree } from "./lib/useFileTree";
 import { useGlobalShortcuts } from "@/modules/shortcuts";
+import { MOD_PROP } from "@/lib/platform";
 
 export type FileExplorerHandle = {
   focus: () => void;
@@ -344,6 +344,50 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
           else onOpenFile(row.path);
           break;
         }
+        case "F2": {
+          if (currentIdx < 0) return;
+          e.preventDefault();
+          tree.beginRename(entryPaths[currentIdx]);
+          break;
+        }
+        case "Delete": {
+          if (currentIdx < 0) return;
+          e.preventDefault();
+          void tree.deletePath(entryPaths[currentIdx]);
+          break;
+        }
+        default: {
+          const mod = MOD_PROP === "meta" ? e.metaKey : e.ctrlKey;
+          if (!mod || e.altKey) break;
+          const path = currentIdx >= 0 ? entryPaths[currentIdx] : null;
+          const pasteDir =
+            path === null
+              ? rootPath
+              : (() => {
+                  const idx = entryIndexByPath.get(path);
+                  if (idx === undefined) return rootPath;
+                  const row = rows[idx];
+                  if (row.kind !== "entry") return rootPath;
+                  return row.isDir
+                    ? row.path
+                    : row.path.slice(0, row.path.lastIndexOf("/")) || rootPath;
+                })();
+
+          if (e.key === "c" || e.key === "C") {
+            if (!path) break;
+            e.preventDefault();
+            tree.copyPath(path);
+          } else if (e.key === "x" || e.key === "X") {
+            if (!path) break;
+            e.preventDefault();
+            tree.cutPath(path);
+          } else if (e.key === "v" || e.key === "V") {
+            const clip = getExplorerClipboard();
+            if (!clip || !canPasteAt(pasteDir, clip.path)) break;
+            e.preventDefault();
+            void tree.pasteAt(pasteDir);
+          }
+        }
       }
     };
 
@@ -479,7 +523,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
               >
                 {pendingAtRoot ? (
                   <div
-                    className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[15px]"
+                    className="flex h-6 w-full min-w-0 items-center gap-2 px-1.5 text-[13px]"
                     style={{ paddingLeft: 6 }}
                   >
                     <span className="size-3.5 shrink-0" />
@@ -508,7 +552,7 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                   </div>
                 )}
                 {root?.status === "error" && (
-                  <div className="px-3 py-2 text-[15px] text-destructive">
+                  <div className="px-3 py-2 text-[13px] text-destructive">
                     {root.message}
                   </div>
                 )}
@@ -550,46 +594,11 @@ export const FileExplorer = forwardRef<FileExplorerHandle, Props>(
                 if (tree.renaming || tree.pendingCreate) e.preventDefault();
               }}
             >
-              {onRevealInTerminal && (
-                <ContextMenuItem
-                  className={COMPACT_ITEM}
-                  onSelect={() => onRevealInTerminal(rootPath)}
-                >
-                  在终端中打开
-                </ContextMenuItem>
-              )}
-              <ContextMenuItem
-                className={COMPACT_ITEM}
-                onSelect={() => void revealInFinder(rootPath)}
-              >
-                在资源管理器中显示
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                className={COMPACT_ITEM}
-                onSelect={() => tree.beginCreate(rootPath, "file")}
-              >
-                新建文件
-              </ContextMenuItem>
-              <ContextMenuItem
-                className={COMPACT_ITEM}
-                onSelect={() => tree.beginCreate(rootPath, "dir")}
-              >
-                新建文件夹
-              </ContextMenuItem>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                className={COMPACT_ITEM}
-                onSelect={() => void copyToClipboard(rootPath)}
-              >
-                复制路径
-              </ContextMenuItem>
-              <ContextMenuItem
-                className={COMPACT_ITEM}
-                onSelect={() => tree.refresh(rootPath)}
-              >
-                刷新
-              </ContextMenuItem>
+              <ExplorerEmptyContextMenuItems
+                rootPath={rootPath}
+                tree={tree}
+                onRevealInTerminal={onRevealInTerminal}
+              />
             </ContextMenuContent>
           </ContextMenu>
         ) : null}

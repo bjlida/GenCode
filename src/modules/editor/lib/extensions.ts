@@ -1,4 +1,9 @@
-import { detectMonoFontFamily } from "@/lib/fonts";
+import {
+  CURSOR_EDITOR_FONT_SIZE_PX,
+  CURSOR_EDITOR_LINE_HEIGHT,
+  CURSOR_MONO_LIGATURES,
+  detectMonoFontFamily,
+} from "@/lib/fonts";
 import { indentUnit } from "@codemirror/language";
 import { lintGutter } from "@codemirror/lint";
 import { search } from "@codemirror/search";
@@ -30,8 +35,10 @@ export function buildSharedExtensions(): Extension[] {
       },
       ".cm-scroller": {
         fontFamily: detectMonoFontFamily(),
-        fontSize: "13px",
-        lineHeight: "1.55",
+        fontSize: `${CURSOR_EDITOR_FONT_SIZE_PX}px`,
+        lineHeight: String(CURSOR_EDITOR_LINE_HEIGHT),
+        fontFeatureSettings: CURSOR_MONO_LIGATURES,
+        fontVariantLigatures: "contextual common-ligatures",
         backgroundColor: "transparent !important",
       },
       ".cm-content": {

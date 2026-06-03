@@ -12,7 +12,7 @@ type Props = {
 export function AgentStatusPill({ onClick }: Props) {
   const meta = useChatStore((s) => s.agentMeta);
 
-  // awaiting-approval is surfaced by the notification + auto-opened mini window.
+  // awaiting-approval is surfaced by the notification + auto-opened panel.
   if (meta.status === "awaiting-approval") return null;
   if (meta.status === "idle" && !meta.error) return null;
 
@@ -29,7 +29,7 @@ export function AgentStatusPill({ onClick }: Props) {
         exit={{ opacity: 0, y: -2 }}
         transition={{ duration: 0.12, ease: "easeOut" }}
         className={cn(
-          "flex h-6 items-center gap-1.5 rounded-md border px-1.5 text-[15px] transition-colors",
+          "flex h-6 items-center gap-1.5 rounded-md border px-1.5 text-[13px] transition-colors",
           tone,
         )}
         title="打开 AI 日志"

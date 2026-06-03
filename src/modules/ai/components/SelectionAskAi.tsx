@@ -3,19 +3,33 @@ import { fmtShortcut, MOD_KEY } from "@/lib/platform";
 import { motion } from "motion/react";
 import { useEffect } from "react";
 
+export type SelectionAskAiAlign = "center" | "right";
+
 export type SelectionAskAiProps = {
   x: number;
   y: number;
+  align?: SelectionAskAiAlign;
   onAsk: () => void;
   onDismiss: () => void;
 };
 
-const W = 178;
-const H = 30;
-const GAP = 8;
-const MARGIN = 8;
+const W = 248;
+const H = 38;
+const GAP = 10;
+const MARGIN = 12;
+const EDITOR_INSET = 16;
 
-export function SelectionAskAi({ x, y, onAsk, onDismiss }: SelectionAskAiProps) {
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(n, max));
+}
+
+export function SelectionAskAi({
+  x,
+  y,
+  align = "right",
+  onAsk,
+  onDismiss,
+}: SelectionAskAiProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onDismiss();
@@ -24,8 +38,11 @@ export function SelectionAskAi({ x, y, onAsk, onDismiss }: SelectionAskAiProps) 
     return () => document.removeEventListener("keydown", onKey);
   }, [onDismiss]);
 
-  const top = Math.max(MARGIN, y - H - GAP);
-  const left = Math.max(MARGIN, Math.min(x - W / 2, window.innerWidth - W - MARGIN));
+  const top = clamp(y, MARGIN, window.innerHeight - H - MARGIN);
+  const left =
+    align === "right"
+      ? clamp(x - W - EDITOR_INSET, MARGIN, window.innerWidth - W - MARGIN)
+      : clamp(x - W / 2, MARGIN, window.innerWidth - W - MARGIN);
 
   return (
     <motion.div
@@ -34,8 +51,8 @@ export function SelectionAskAi({ x, y, onAsk, onDismiss }: SelectionAskAiProps) 
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 4, scale: 0.95 }}
       transition={{ duration: 0.12, ease: "easeOut" }}
-      style={{ top, left, width: W }}
-      className="fixed z-50"
+      style={{ top: top - GAP, left, width: W }}
+      className="fixed z-50 -translate-y-full"
     >
       <button
         type="button"
@@ -43,11 +60,13 @@ export function SelectionAskAi({ x, y, onAsk, onDismiss }: SelectionAskAiProps) 
           e.stopPropagation();
           onAsk();
         }}
-        className="flex h-[30px] w-full items-center justify-between gap-2 rounded-md border border-border/60 bg-card/95 px-2.5 text-xs whitespace-nowrap shadow-lg backdrop-blur-md hover:border-border hover:bg-accent"
+        className="flex h-[38px] w-full items-center justify-between gap-3 rounded-full border border-border/60 bg-card/95 px-4 text-sm font-medium whitespace-nowrap shadow-lg backdrop-blur-md hover:border-border hover:bg-accent"
       >
         <span className="shrink-0">向灵码ADE 提问</span>
         <KbdGroup className="shrink-0">
-          <Kbd className="h-4 min-w-4 px-1 text-[10px]">{fmtShortcut(MOD_KEY, "L")}</Kbd>
+          <Kbd className="h-5 min-w-5 px-1.5 text-[11px]">
+            {fmtShortcut(MOD_KEY, "L")}
+          </Kbd>
         </KbdGroup>
       </button>
     </motion.div>

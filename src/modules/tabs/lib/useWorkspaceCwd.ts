@@ -9,7 +9,8 @@ type Result = {
 export function useWorkspaceCwd(
   activeTab: Tab | undefined,
   tabs: Tab[],
-  home: string | null,
+  workspaceSeed: string | null,
+  terminalHome: string | null,
 ): Result {
   const lastTerminalCwd = useRef<string | null>(null);
 
@@ -24,16 +25,16 @@ export function useWorkspaceCwd(
     if (lastTerminalCwd.current) return lastTerminalCwd.current;
     const anyTerm = tabs.find((t) => t.kind === "terminal" && t.cwd);
     if (anyTerm?.kind === "terminal" && anyTerm.cwd) return anyTerm.cwd;
-    return home;
-  }, [activeTab, tabs, home]);
+    return workspaceSeed;
+  }, [activeTab, tabs, workspaceSeed]);
 
   const inheritedCwdForNewTab = useCallback((): string | undefined => {
     if (activeTab?.kind === "terminal" && activeTab.cwd) return activeTab.cwd;
-    // Editor tabs inherit the last terminal's cwd (or workspace home), not
+    // Editor tabs inherit the last terminal's cwd (or OS home), not
     // the file's folder — opening a new terminal from a file shouldn't
     // hijack the user's working directory context.
-    return lastTerminalCwd.current ?? home ?? undefined;
-  }, [activeTab, home]);
+    return lastTerminalCwd.current ?? terminalHome ?? undefined;
+  }, [activeTab, terminalHome]);
 
   return { explorerRoot, inheritedCwdForNewTab };
 }

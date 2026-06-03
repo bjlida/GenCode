@@ -14,6 +14,12 @@ export function relativePath(rootPath: string, path: string): string {
   return path;
 }
 
+export function terminalCwdForPath(path: string, isDir: boolean): string {
+  if (isDir) return path;
+  const i = path.lastIndexOf("/");
+  return i <= 0 ? path : path.slice(0, i);
+}
+
 export async function revealInFinder(path: string): Promise<void> {
   try {
     await revealItemInDir(path);

@@ -13,11 +13,11 @@ import {
 
 /**
  * Headless bridge that mirrors chat lifecycle into the store, so the status
- * pill / mini-window / panel can react without being inside the chat hook tree.
+ * pill / panel can react without being inside the chat hook tree.
  *
  * Side effects:
  *  - Patches `agentMeta` on every status / approvals change.
- *  - Auto-opens the mini-window when an approval is pending — the user has
+ *  - Auto-opens the right panel when an approval is pending — the user has
  *    to act on it; hiding it would be hostile.
  *  - For pending `write_file` calls, opens an AI diff tab in the editor area
  *    so the user can review the proposed change before approving.
@@ -64,7 +64,7 @@ function Bridge({
     chat,
   });
   const patch = useChatStore((s) => s.patchAgentMeta);
-  const openMini = useChatStore((s) => s.openMini);
+  const openPanel = useChatStore((s) => s.openPanel);
   const persistMessages = useChatStore((s) => s.persistMessages);
   const setApprovalResponder = useChatStore((s) => s.setApprovalResponder);
 
@@ -121,8 +121,8 @@ function Bridge({
   }, [status, approvalsPending, patch]);
 
   useEffect(() => {
-    if (approvalsPending > 0) openMini();
-  }, [approvalsPending, openMini]);
+    if (approvalsPending > 0) openPanel();
+  }, [approvalsPending, openPanel]);
 
   // ---- AI diff tab management ----------------------------------------------
   // We track which approvalIds have already opened a tab so re-renders don't

@@ -1,3 +1,4 @@
+import { GenCodeLogoMark } from "@/components/GenCodeLogoMark";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ import {
 import type { Tab } from "@/modules/tabs";
 import { TabBar } from "@/modules/tabs";
 import { NotificationBell } from "@/modules/agents";
+import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 import {
   GridViewIcon,
   LayoutTwoColumnIcon,
@@ -106,11 +108,11 @@ export function Header({
     <Button
       variant="ghost"
       size="icon"
-      className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="size-8 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
       onClick={onOpenSettings}
       title="设置"
     >
-      <HugeiconsIcon icon={Settings01Icon} size={17} strokeWidth={1.75} />
+      <HugeiconsIcon icon={Settings01Icon} size={18} strokeWidth={1.75} />
     </Button>
   );
 
@@ -118,7 +120,7 @@ export function Header({
     <div
       ref={rootRef}
       data-tauri-drag-region
-      className={`flex h-10 shrink-0 items-center gap-2 border-b border-border/30 bg-card select-none supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur-xl ${
+      className={`flex h-header shrink-0 items-center gap-2 border-b border-border/30 bg-card select-none supports-[backdrop-filter]:bg-card/70 supports-[backdrop-filter]:backdrop-blur-xl ${
         IS_MAC ? "pr-2 pl-20" : "pr-0 pl-2"
       }`}
     >
@@ -130,12 +132,18 @@ export function Header({
           size="icon-sm"
           className="shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         >
-          <HugeiconsIcon icon={SidebarLeftIcon} size={18} strokeWidth={1.75} />
+          <HugeiconsIcon icon={SidebarLeftIcon} size={20} strokeWidth={1.75} />
         </Button>
 
-        <span className="ml-1 mr-1.5 select-none text-[15px] font-bold tracking-tight text-foreground/80">
-          灵码ADE
-        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+          onClick={() => void openSettingsWindow("about")}
+          title="关于 GenCode"
+        >
+          <GenCodeLogoMark size={20} className="opacity-90" />
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -146,32 +154,38 @@ export function Header({
               title="拆分终端"
               disabled={!canSplit}
             >
-              <HugeiconsIcon icon={GridViewIcon} size={16} strokeWidth={1.75} />
+              <HugeiconsIcon icon={GridViewIcon} size={18} strokeWidth={1.75} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-44">
-            <DropdownMenuItem onSelect={() => onSplit("row")}>
+          <DropdownMenuContent align="start" className="min-w-52">
+            <DropdownMenuItem
+              onSelect={() => onSplit("row")}
+              className="whitespace-nowrap"
+            >
               <HugeiconsIcon
                 icon={LayoutTwoColumnIcon}
                 size={14}
                 strokeWidth={1.75}
               />
-              <span className="flex-1">向右拆分</span>
+              <span className="shrink-0">向右拆分</span>
               {splitRightTokens && (
-                <span className="text-xs text-muted-foreground">
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                   {splitRightTokens}
                 </span>
               )}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onSplit("col")}>
+            <DropdownMenuItem
+              onSelect={() => onSplit("col")}
+              className="whitespace-nowrap"
+            >
               <HugeiconsIcon
                 icon={LayoutTwoRowIcon}
                 size={14}
                 strokeWidth={1.75}
               />
-              <span className="flex-1">向下拆分</span>
+              <span className="shrink-0">向下拆分</span>
               {splitDownTokens && (
-                <span className="text-xs text-muted-foreground">
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                   {splitDownTokens}
                 </span>
               )}

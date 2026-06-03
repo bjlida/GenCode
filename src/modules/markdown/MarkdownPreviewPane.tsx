@@ -20,14 +20,26 @@ type Status =
 type Props = {
   path: string;
   visible: boolean;
+  /** Live buffer from the editor; when set, disk is not re-read. */
+  content?: string | null;
+  embedded?: boolean;
 };
 
 const components = { code: MarkdownCode };
 
-export function MarkdownPreviewPane({ path, visible }: Props) {
+export function MarkdownPreviewPane({
+  path,
+  visible,
+  content,
+  embedded = false,
+}: Props) {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
 
   useEffect(() => {
+    if (content != null) {
+      setStatus({ kind: "ready", content });
+      return;
+    }
     let cancelled = false;
     setStatus({ kind: "loading" });
     invoke<ReadResult>("fs_read_file", {
@@ -54,12 +66,13 @@ export function MarkdownPreviewPane({ path, visible }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, content]);
 
   return (
     <div
       className={cn(
-        "flex h-full w-full flex-col overflow-hidden rounded-md border border-border/60 bg-background",
+        "flex h-full w-full flex-col overflow-hidden bg-background",
+        !embedded && "rounded-md border border-border/60",
         !visible && "pointer-events-none",
       )}
     >
@@ -68,7 +81,7 @@ export function MarkdownPreviewPane({ path, visible }: Props) {
           <p className="text-[13px] text-muted-foreground">加载中…</p>
         )}
         {status.kind === "error" && (
-          <p className="text-[15px] text-destructive">
+          <p className="text-[13px] text-destructive">
             读取文件失败：{status.message}
           </p>
         )}

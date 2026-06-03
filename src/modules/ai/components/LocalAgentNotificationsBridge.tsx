@@ -27,7 +27,7 @@ function liveStatus(s: RunStatus): AgentStatus | null {
 export function LocalAgentNotificationsBridge() {
   const status = useChatStore((s) => s.agentMeta.status) as RunStatus;
   const error = useChatStore((s) => s.agentMeta.error);
-  const visible = useChatStore((s) => s.panelOpen || s.mini.open);
+  const visible = useChatStore((s) => s.panelOpen);
   const focused = useWindowFocus();
 
   const visibleRef = useRef(visible);

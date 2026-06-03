@@ -1,5 +1,7 @@
 use serde_json::{json, Value};
 
+use crate::modules::claude_code::config;
+
 const HOOK_EVENTS: [(&str, &str); 3] = [
     ("UserPromptSubmit", "working"),
     ("Notification", "attention"),
@@ -74,10 +76,7 @@ fn existing_config(contents: Option<&str>, path: &std::path::Path) -> Result<Val
 }
 
 fn settings_path() -> Result<std::path::PathBuf, String> {
-    Ok(dirs::home_dir()
-        .ok_or_else(|| "could not resolve home dir".to_string())?
-        .join(".claude")
-        .join("settings.json"))
+    config::user_claude_settings_path()
 }
 
 #[tauri::command]
@@ -92,7 +91,8 @@ pub fn agent_enable_claude_hooks() -> Result<(), String> {
         Err(e) => return Err(format!("read {}: {e}", path.display())),
     };
 
-    let merged = merge_hooks(existing);
+    let with_locale = config::merge_chinese_locale(existing);
+    let merged = merge_hooks(with_locale);
     let out = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
 
     // Write to a sibling temp file then rename so a crash mid-write can't leave

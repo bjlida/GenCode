@@ -32,6 +32,8 @@ initVimGlobals();
 import { resolveLanguage } from "./lib/languageResolver";
 import { useDocument } from "./lib/useDocument";
 import { inlineCompletion } from "./lib/autocomplete/inlineExtension";
+import { EditorContextMenu } from "./EditorContextMenu";
+import { buildFormatCommand } from "./lib/formatDocument";
 import { getKey } from "@/modules/ai/lib/keyring";
 import { onKeysChanged } from "@/modules/settings/store";
 
@@ -44,7 +46,15 @@ export type EditorPaneHandle = {
   clearQuery: () => void;
   focus: () => void;
   getSelection: () => string | null;
-  getSelectionRect: () => { left: number; top: number; width: number } | null;
+  getSelectionRect: () => {
+    left: number;
+    top: number;
+    width: number;
+    bottom: number;
+    editorLeft: number;
+    editorRight: number;
+    anchorY: number;
+  } | null;
   getPath: () => string;
   getCursorPosition: () => EditorCursorPosition | null;
   setReplaceQuery: (replace: string) => void;
@@ -57,6 +67,8 @@ export type EditorPaneHandle = {
   /** Apply CodeMirror's undo/redo commands. */
   undo: () => void;
   redo: () => void;
+  /** Current buffer text (null if the editor is not ready). */
+  getContent: () => string | null;
 };
 
 type Props = {
@@ -65,6 +77,7 @@ type Props = {
   onSaved?: () => void;
   onClose?: () => void;
   onCursorChange?: (pos: EditorCursorPosition | null) => void;
+  onFormat?: () => void;
 };
 
 function formatBytes(n: number): string {
@@ -74,7 +87,10 @@ function formatBytes(n: number): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, Props>(
-  function EditorPane({ path, onDirtyChange, onSaved, onClose, onCursorChange }, ref) {
+  function EditorPane(
+    { path, onDirtyChange, onSaved, onClose, onCursorChange, onFormat },
+    ref,
+  ) {
     const { doc, onChange, save, reload } = useDocument({ path, onDirtyChange });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
@@ -129,6 +145,9 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
 
     const onCursorChangeRef = useRef(onCursorChange);
     onCursorChangeRef.current = onCursorChange;
+    const onFormatRef = useRef(onFormat);
+    onFormatRef.current = onFormat;
+    const formatEnabled = buildFormatCommand(path) !== null;
 
     const searchQueryRef = useRef("");
     const replaceQueryRef = useRef("");
@@ -331,16 +350,54 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           const start = view.coordsAtPos(from);
           const end = view.coordsAtPos(to);
           const editor = view.dom.getBoundingClientRect();
-          if (!start && !end) return { left: editor.left, top: editor.top, width: editor.width };
+          const base = {
+            editorLeft: editor.left,
+            editorRight: editor.right,
+          };
+          if (!start && !end) {
+            return {
+              ...base,
+              left: editor.left,
+              top: editor.top,
+              width: editor.width,
+              bottom: editor.bottom,
+              anchorY: editor.top,
+            };
+          }
           if (!start) {
             const rect = end!;
-            return { left: rect.left, top: rect.top, width: Math.max(1, rect.right - rect.left) };
+            return {
+              ...base,
+              left: rect.left,
+              top: rect.top,
+              width: Math.max(1, rect.right - rect.left),
+              bottom: rect.bottom,
+              anchorY: rect.top,
+            };
           }
-          if (!end) return { left: start.left, top: start.top, width: Math.max(1, start.right - start.left) };
+          if (!end) {
+            return {
+              ...base,
+              left: start.left,
+              top: start.top,
+              width: Math.max(1, start.right - start.left),
+              bottom: start.bottom,
+              anchorY: start.top,
+            };
+          }
           const left = Math.max(editor.left, Math.min(start.left, end.left));
           const right = Math.min(editor.right, Math.max(start.right, end.right));
           const top = Math.max(editor.top, Math.min(start.top, end.top));
-          return { left, top, width: Math.max(1, right - left) };
+          const bottom = Math.max(start.bottom, end.bottom);
+          const anchorY = to >= from ? end.top : start.top;
+          return {
+            ...base,
+            left,
+            top,
+            width: Math.max(1, right - left),
+            bottom,
+            anchorY,
+          };
         },
         getPath: () => path,
         getCursorPosition: () => {
@@ -368,8 +425,13 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           const view = cmRef.current?.view;
           if (view) redo(view);
         },
+        getContent: () => {
+          const view = cmRef.current?.view;
+          if (!view || doc.status !== "ready") return null;
+          return view.state.doc.toString();
+        },
       }),
-      [path],
+      [path, doc.status],
     );
 
     if (doc.status === "loading") {
@@ -408,28 +470,42 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     }
 
     return (
-      <div className="flex h-full min-h-0 flex-col">
-        <CodeMirror
-          ref={cmRef}
-          value={doc.content}
-          onChange={onChange}
-          theme={themeExt}
-          extensions={extensions}
-          height="100%"
-          className="flex-1 min-h-0 overflow-hidden"
-          basicSetup={{
-            lineNumbers: true,
-            highlightActiveLineGutter: true,
-            foldGutter: true,
-            bracketMatching: true,
-            closeBrackets: true,
-            autocompletion: true,
-            highlightActiveLine: true,
-            highlightSelectionMatches: true,
-            searchKeymap: true,
-          }}
-        />
-      </div>
+      <EditorContextMenu
+        formatEnabled={formatEnabled}
+        onFocus={() => cmRef.current?.view?.focus()}
+        onUndo={() => {
+          const view = cmRef.current?.view;
+          if (view) undo(view);
+        }}
+        onRedo={() => {
+          const view = cmRef.current?.view;
+          if (view) redo(view);
+        }}
+        onFormat={() => onFormatRef.current?.()}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <CodeMirror
+            ref={cmRef}
+            value={doc.content}
+            onChange={onChange}
+            theme={themeExt}
+            extensions={extensions}
+            height="100%"
+            className="flex-1 min-h-0 overflow-hidden"
+            basicSetup={{
+              lineNumbers: true,
+              highlightActiveLineGutter: true,
+              foldGutter: true,
+              bracketMatching: true,
+              closeBrackets: true,
+              autocompletion: true,
+              highlightActiveLine: true,
+              highlightSelectionMatches: true,
+              searchKeymap: true,
+            }}
+          />
+        </div>
+      </EditorContextMenu>
     );
   },
 );

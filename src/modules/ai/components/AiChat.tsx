@@ -195,6 +195,7 @@ export function AiChatView({
   const step = useChatStore((s) => s.agentMeta.step);
   const hitStepCap = useChatStore((s) => s.agentMeta.hitStepCap);
   const compactionNotice = useChatStore((s) => s.agentMeta.compactionNotice);
+  const attachmentNotice = useChatStore((s) => s.agentMeta.attachmentNotice);
   const patchAgentMeta = useChatStore((s) => s.patchAgentMeta);
   const showContinue =
     !isBusy && hitStepCap && lastMessage?.role === "assistant";
@@ -207,7 +208,13 @@ export function AiChatView({
   if (messages.length === 0) {
     return (
       <Conversation>
-        <ConversationContent>
+        <ConversationContent className={attachmentNotice ? "gap-3 p-3" : undefined}>
+          {attachmentNotice ? (
+            <AttachmentNotice
+              message={attachmentNotice}
+              onDismiss={() => patchAgentMeta({ attachmentNotice: null })}
+            />
+          ) : null}
           <ConversationEmptyState
             title="向灵码ADE 提问"
             description="解释命令输出、修复错误、生成代码片段或执行任务。"
@@ -232,6 +239,12 @@ export function AiChatView({
           <CompactionNotice
             droppedCount={compactionNotice.droppedCount}
             onDismiss={() => patchAgentMeta({ compactionNotice: null })}
+          />
+        )}
+        {attachmentNotice && (
+          <AttachmentNotice
+            message={attachmentNotice}
+            onDismiss={() => patchAgentMeta({ attachmentNotice: null })}
           />
         )}
         {showSpinner && (
@@ -287,7 +300,29 @@ const CompactionNotice = memo(function CompactionNotice({
       <button
         type="button"
         onClick={onDismiss}
-        className="text-[15px] underline opacity-70 hover:opacity-100"
+        className="text-[13px] underline opacity-70 hover:opacity-100"
+      >
+        关闭
+      </button>
+    </div>
+  );
+});
+
+const AttachmentNotice = memo(function AttachmentNotice({
+  message,
+  onDismiss,
+}: {
+  message: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="rounded-md border border-destructive/35 bg-destructive/8 px-3 py-2.5 text-[13px] text-destructive">
+      <div className="font-medium">无法发送图片</div>
+      <p className="mt-1 leading-relaxed opacity-90">{message}</p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="mt-1.5 text-[13px] underline opacity-80 hover:opacity-100"
       >
         关闭
       </button>
@@ -301,14 +336,14 @@ const ContinueRow = memo(function ContinueRow({
   onContinue: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-2.5 py-1.5 text-[15px]">
+    <div className="flex items-center gap-2 rounded-md border border-border/50 bg-card/60 px-2.5 py-1.5 text-[13px]">
       <span className="flex-1 text-muted-foreground">
         已达步骤上限。点击继续以保持推进。
       </span>
       <button
         type="button"
         onClick={onContinue}
-        className="rounded-md border border-border/60 bg-background px-2 py-0.5 text-[15px] font-medium text-foreground transition-colors hover:bg-accent"
+        className="rounded-md border border-border/60 bg-background px-2 py-0.5 text-[13px] font-medium text-foreground transition-colors hover:bg-accent"
       >
         继续
       </button>
@@ -335,6 +370,14 @@ const RenderedMessage = memo(function RenderedMessage({
     }
   }
   if (message.role === "user") {
+    const imageParts = message.parts.filter(
+      (p): p is { type: "file"; mediaType: string; url: string; filename?: string } =>
+        p.type === "file" &&
+        typeof (p as { mediaType?: string }).mediaType === "string" &&
+        (p as { mediaType: string }).mediaType.startsWith("image/") &&
+        typeof (p as { url?: string }).url === "string",
+    );
+
     const rawText = message.parts
       .filter((p): p is { type: "text"; text: string } => p.type === "text")
       .map((p) => p.text)
@@ -351,6 +394,27 @@ const RenderedMessage = memo(function RenderedMessage({
           {commandName ? <CommandSnippet name={commandName} /> : null}
           {stripped.chips.length > 0 ? (
             <ContextChips chips={stripped.chips} />
+          ) : null}
+          {imageParts.length > 0 ? (
+            <div className="mb-1 flex flex-wrap gap-1.5">
+              {imageParts.map((p, i) => (
+                <figure
+                  key={`${message.id}-img-${i}`}
+                  className="overflow-hidden rounded-lg border border-border/50 bg-card/40"
+                >
+                  <img
+                    src={p.url}
+                    alt={p.filename ?? "截图"}
+                    className="max-h-48 max-w-full object-contain"
+                  />
+                  {p.filename ? (
+                    <figcaption className="truncate px-2 py-0.5 text-[11px] text-muted-foreground">
+                      {p.filename}
+                    </figcaption>
+                  ) : null}
+                </figure>
+              ))}
+            </div>
           ) : null}
           {stripped.text ? (
             <p className="whitespace-pre-wrap wrap-break-word">
@@ -490,7 +554,7 @@ const ReadGroup = memo(function ReadGroup({ parts }: { parts: AnyPart[] }) {
     <Collapsible className="group/read overflow-hidden rounded-md border border-border/50 bg-card/50">
       <CollapsibleTrigger
         className={cn(
-          "flex w-full items-center gap-2 px-2 py-1.5 text-left text-[15px]",
+          "flex w-full items-center gap-2 px-2 py-1.5 text-left text-[13px]",
           "transition-colors hover:bg-muted/50",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         )}
@@ -567,7 +631,7 @@ const ReadRow = memo(function ReadRow({ part }: { part: AnyPart }) {
   const state = (part as { state?: string }).state ?? "";
   const isError = state === "output-error";
   return (
-    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[15px]">
+    <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px]">
       <span
         className={cn(
           "size-1.5 shrink-0 rounded-full",

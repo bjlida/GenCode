@@ -29,7 +29,6 @@ import {
   AgentRunBridge,
   AiAgentPanel,
   AiInputBarConnect,
-  AiMiniWindow,
   getAllKeys,
   hasAnyKey,
   LocalAgentNotificationsBridge,
@@ -49,6 +48,7 @@ import {
   type EditorPaneHandle,
   type EditorCursorPosition,
 } from "@/modules/editor";
+import { buildFormatCommand } from "@/modules/editor/lib/formatDocument";
 import {
   GitHistoryStack,
   type GitHistorySearchHandle,
@@ -114,7 +114,10 @@ import {
   currentWorkspaceEnv,
   getWslHome,
   LOCAL_WORKSPACE,
+  readLastWorkspacePath,
   useWorkspaceEnvStore,
+  validateWorkspacePath,
+  writeLastWorkspacePath,
   type WorkspaceEnv,
 } from "@/modules/workspace";
 import { invoke } from "@tauri-apps/api/core";
@@ -125,14 +128,31 @@ import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
-const AI_PANEL_SIZE_KEY = "gencode-ai-panel-size";
-const AI_PANEL_DEFAULT_SIZE = 30;
+const AI_PANEL_WIDTH_KEY = "gencode-ai-panel-width";
+const AI_PANEL_MIN_WIDTH = 320;
+const AI_PANEL_MAX_WIDTH = 480;
+const AI_PANEL_DEFAULT_WIDTH = 380;
 
-function readAiPanelSize(): number {
-  if (typeof window === "undefined") return AI_PANEL_DEFAULT_SIZE;
-  const raw = localStorage.getItem(AI_PANEL_SIZE_KEY);
-  const n = raw ? Number(raw) : AI_PANEL_DEFAULT_SIZE;
-  return Number.isFinite(n) ? Math.min(60, Math.max(15, n)) : AI_PANEL_DEFAULT_SIZE;
+function clampAiPanelWidth(width: number): number {
+  return Math.min(
+    AI_PANEL_MAX_WIDTH,
+    Math.max(AI_PANEL_MIN_WIDTH, Math.round(width)),
+  );
+}
+
+function readAiPanelWidth(): number {
+  if (typeof window === "undefined") return AI_PANEL_DEFAULT_WIDTH;
+  try {
+    const raw = localStorage.getItem(AI_PANEL_WIDTH_KEY);
+    if (raw === null) {
+      const legacy = localStorage.getItem("gencode-ai-panel-size");
+      if (legacy !== null && Number(legacy) <= 100) return AI_PANEL_DEFAULT_WIDTH;
+    }
+    const n = raw ? Number(raw) : AI_PANEL_DEFAULT_WIDTH;
+    return Number.isFinite(n) ? clampAiPanelWidth(n) : AI_PANEL_DEFAULT_WIDTH;
+  } catch {
+    return AI_PANEL_DEFAULT_WIDTH;
+  }
 }
 
 function dirname(path: string | null): string | null {
@@ -141,6 +161,15 @@ function dirname(path: string | null): string | null {
   const idx = normalized.lastIndexOf("/");
   if (idx <= 0) return normalized;
   return normalized.slice(0, idx);
+}
+
+function isPathWithinRoot(path: string, root: string): boolean {
+  const normalizedPath = path.replace(/\\/g, "/");
+  const normalizedRoot = root.replace(/\\/g, "/").replace(/\/$/, "");
+  return (
+    normalizedPath === normalizedRoot ||
+    normalizedPath.startsWith(`${normalizedRoot}/`)
+  );
 }
 
 const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -190,7 +219,6 @@ export default function App() {
     openFileTab,
     pinTab,
     newPreviewTab,
-    newMarkdownTab,
     openAiDiffTab,
     closeAiDiffTab,
     openGitDiffTab,
@@ -236,7 +264,8 @@ export default function App() {
 
   const sidebarRef = useRef<PanelImperativeHandle | null>(null);
   const sidebarWidthRef = useRef(readSidebarWidth());
-  const aiPanelSizeRef = useRef(readAiPanelSize());
+  const aiPanelWidthRef = useRef(readAiPanelWidth());
+  const aiPanelWidthWriteTimerRef = useRef(0);
   const sidebarWidthWriteTimerRef = useRef(0);
   const [sidebarView, setSidebarViewState] = useState<SidebarViewId>(readSidebarView);
   const persistSidebarView = useCallback((view: SidebarViewId) => {
@@ -298,6 +327,30 @@ export default function App() {
       }
     };
   }, []);
+  const persistAiPanelWidth = useCallback((next: number) => {
+    aiPanelWidthRef.current = clampAiPanelWidth(next);
+    if (aiPanelWidthWriteTimerRef.current) {
+      window.clearTimeout(aiPanelWidthWriteTimerRef.current);
+    }
+    aiPanelWidthWriteTimerRef.current = window.setTimeout(() => {
+      aiPanelWidthWriteTimerRef.current = 0;
+      try {
+        window.localStorage.setItem(
+          AI_PANEL_WIDTH_KEY,
+          String(aiPanelWidthRef.current),
+        );
+      } catch {
+        // ignore
+      }
+    }, 200);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (aiPanelWidthWriteTimerRef.current) {
+        window.clearTimeout(aiPanelWidthWriteTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleExplorerFocus = useCallback(() => {
     const explorer = explorerRef.current;
@@ -342,8 +395,12 @@ export default function App() {
   );
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
   const setWorkspaceEnv = useWorkspaceEnvStore((s) => s.setEnv);
-  const [launchCwd, setLaunchCwd] = useState<string | null>(null);
-  const [launchCwdResolved, setLaunchCwdResolved] = useState(false);
+  const initialProjectDir = getLaunchDir() ?? null;
+  const [launchCwd, setLaunchCwd] = useState<string | null>(initialProjectDir);
+  const [launchCwdResolved] = useState(true);
+  const [overriddenExplorerRoot, setOverriddenExplorerRoot] = useState<
+    string | null
+  >(initialProjectDir);
   const [pendingDeleteTabs, setPendingDeleteTabs] = useState<number[] | null>(
     null,
   );
@@ -388,6 +445,11 @@ export default function App() {
         return;
       }
 
+      const restored = await readLastWorkspacePath(env);
+      const projectDir = restored
+        ? await validateWorkspacePath(restored, env)
+        : null;
+
       for (const id of liveLeavesRef.current) disposeSession(id);
       searchAddons.current.clear();
       terminalRefs.current.clear();
@@ -397,32 +459,23 @@ export default function App() {
       setActiveEditorHandle(null);
       setWorkspaceEnv(env.kind === "local" ? LOCAL_WORKSPACE : env);
       setHome(nextHome);
-      setLaunchCwd(nextHome);
-      if (nextHome) {
+      setLaunchCwd(projectDir);
+      setOverriddenExplorerRoot(projectDir);
+      if (projectDir) {
         try {
-          await native.workspaceAuthorize(nextHome);
+          await native.workspaceAuthorize(projectDir);
         } catch {
           // Non-fatal — git panel will surface "not authorized" if needed.
         }
       }
-      resetWorkspace(nextHome ?? undefined);
+      resetWorkspace(projectDir ?? undefined);
     },
     [workspaceEnv, setWorkspaceEnv, resetWorkspace],
   );
-  useEffect(() => {
-    native
-      .workspaceCurrentDir()
-      .then(setLaunchCwd)
-      .catch(() => setLaunchCwd(null))
-      .finally(() => setLaunchCwdResolved(true));
-  }, []);
-
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [ccCommandsOpen, setCcCommandsOpen] = useState(false);
   const [newEditorOpen, setNewEditorOpen] = useState(false);
-  const miniOpen = useChatStore((s) => s.mini.open);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
-  const openMini = useChatStore((s) => s.openMini);
   const focusInput = useChatStore((s) => s.focusInput);
   const openPanel = useChatStore((s) => s.openPanel);
   const panelOpen = useChatStore((s) => s.panelOpen);
@@ -491,6 +544,7 @@ export default function App() {
     void hydrateSessions();
     void useAgentsStore.getState().hydrate();
     void useSnippetsStore.getState().hydrate();
+    void invoke("claude_code_ensure_locale").catch(() => {});
   }, [hydrateSessions]);
 
   const activeTab = tabs.find((t) => t.id === activeId);
@@ -640,14 +694,20 @@ export default function App() {
   const { explorerRoot, inheritedCwdForNewTab } = useWorkspaceCwd(
     activeTab,
     tabs,
-    launchCwd ?? home,
+    launchCwd,
+    home,
   );
 
-  const [overriddenExplorerRoot, setOverriddenExplorerRoot] = useState<string | null>(null);
   const effectiveExplorerRoot = overriddenExplorerRoot ?? explorerRoot;
   const handleChangeExplorerRoot = useCallback((path: string) => {
-    invoke("workspace_authorize", { path, workspace: currentWorkspaceEnv() }).catch(() => {});
-    setOverriddenExplorerRoot(path);
+    const normalized = path.replace(/\\/g, "/");
+    invoke("workspace_authorize", {
+      path: normalized,
+      workspace: currentWorkspaceEnv(),
+    }).catch(() => {});
+    void writeLastWorkspacePath(normalized, currentWorkspaceEnv());
+    setOverriddenExplorerRoot(normalized);
+    setLaunchCwd(normalized);
   }, []);
 
   useEffect(() => {
@@ -811,17 +871,27 @@ export default function App() {
     activeTab,
   ]);
 
-  const [askPopup, setAskPopup] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  const [askPopup, setAskPopup] = useState<{
+    x: number;
+    y: number;
+    align: "center" | "right";
+  } | null>(null);
 
   const getAskPopupPoint = useCallback(
     (fallback: { x: number; y: number }) => {
       const t = tabsRef.current.find((x) => x.id === activeId);
-      if (t?.kind !== "editor") return fallback;
+      if (t?.kind !== "editor") {
+        return { ...fallback, align: "center" as const };
+      }
       const rect = editorRefs.current.get(activeId)?.getSelectionRect();
-      if (!rect) return fallback;
-      return { x: rect.left + rect.width / 2, y: rect.top };
+      if (!rect) {
+        return { ...fallback, align: "center" as const };
+      }
+      return {
+        x: rect.editorRight,
+        y: rect.anchorY,
+        align: "right" as const,
+      };
     },
     [activeId],
   );
@@ -981,18 +1051,24 @@ export default function App() {
     }
     return null;
   })();
-  const workspaceFallbackPath = launchCwdResolved
-    ? (launchCwd ?? home ?? null)
-    : null;
+  // Match explorer/AI workspace root — not terminal-biased explorerRoot alone.
+  const workspaceProjectRoot =
+    effectiveExplorerRoot ?? (launchCwdResolved ? launchCwd : null);
   const sourceControlContextPath = (() => {
     if (activeTab?.kind === "terminal") {
-      return activeTerminalLeafCwd ?? explorerRoot ?? workspaceFallbackPath;
+      const termCwd = activeTerminalLeafCwd;
+      if (termCwd && workspaceProjectRoot) {
+        return isPathWithinRoot(termCwd, workspaceProjectRoot)
+          ? termCwd
+          : workspaceProjectRoot;
+      }
+      return termCwd ?? workspaceProjectRoot;
     }
     if (activeTab?.kind === "editor") return dirname(activeTab.path);
     if (activeTab?.kind === "git-diff") return activeTab.repoRoot;
     if (activeTab?.kind === "git-commit-file") return activeTab.repoRoot;
     if (activeTab?.kind === "git-history") return activeTab.repoRoot;
-    return explorerRoot ?? workspaceFallbackPath;
+    return workspaceProjectRoot;
   })();
   const hasOpenGitTab = useMemo(
     () =>
@@ -1009,7 +1085,7 @@ export default function App() {
   // Stable per-session path so switching tabs / cd-ing in a shell does NOT
   // re-fire git IPC for the badge. The active panel resolves the current
   // context path on its own when the user actually opens git.
-  const badgeContextPath = workspaceFallbackPath;
+  const badgeContextPath = workspaceProjectRoot;
   const sourceControlPath = sourceControlActive
     ? sourceControlContextPath
     : badgeContextPath;
@@ -1058,9 +1134,9 @@ export default function App() {
 
   const openMarkdownPreview = useCallback(
     (path: string) => {
-      newMarkdownTab(path);
+      openFileTab(path, true, { markdownView: "preview" });
     },
-    [newMarkdownTab],
+    [openFileTab],
   );
 
   const splitActivePaneInActiveTab = useCallback(
@@ -1080,6 +1156,25 @@ export default function App() {
     }
     handleClose(activeId);
   }, [activeId, closeActivePane, handleClose]);
+
+  const handleEditorFormat = useCallback(
+    (tabId: number) => {
+      const t = tabsRef.current.find((x) => x.id === tabId);
+      if (t?.kind !== "editor") return;
+      const cmd = buildFormatCommand(t.path);
+      if (!cmd) return;
+      void (async () => {
+        await editorRefs.current.get(tabId)?.save();
+        await invoke("shell_run_command", {
+          command: cmd,
+          cwd: effectiveExplorerRoot ?? launchCwd ?? home,
+          workspace: currentWorkspaceEnv(),
+        });
+        editorRefs.current.get(tabId)?.reload();
+      })();
+    },
+    [effectiveExplorerRoot, launchCwd, home],
+  );
 
   const shortcutHandlers = useMemo<ShortcutHandlers>(
     () => ({
@@ -1110,26 +1205,13 @@ export default function App() {
       "editor.undo": () => editorRefs.current.get(activeId)?.undo(),
       "editor.redo": () => editorRefs.current.get(activeId)?.redo(),
       "editor.replace": () => searchInlineRef.current?.openReplace(),
-      "editor.format": () => {
-        const t = tabs.find((x) => x.id === activeId);
-        if (t?.kind !== "editor") return;
-        const path = t.path;
-        const ext = path.split(".").pop()?.toLowerCase() ?? "";
-        const cmd =
-          ext === "rs"
-            ? `cargo fmt -- "${path}"`
-            : `npx prettier --write "${path.replace(/\\/g, "/")}"`;
-        void invoke("shell_run_command", {
-          command: cmd,
-          cwd: explorerRoot ?? launchCwd ?? home,
-          workspace: currentWorkspaceEnv(),
-        }).then(() => editorRefs.current.get(activeId)?.reload());
-      },
+      "editor.format": () => handleEditorFormat(activeId),
     }),
     [
       activeId,
       cycleTab,
       handleCloseTabOrPane,
+      handleEditorFormat,
       openNewTab,
       openNewPrivateTab,
       openPreviewTab,
@@ -1312,7 +1394,7 @@ export default function App() {
         const cwd = findLeafCwd(t.paneTree, t.activeLeafId) ?? t.cwd;
         if (cwd) return cwd;
       }
-      return explorerRoot ?? launchCwd ?? home ?? null;
+      return effectiveExplorerRoot ?? launchCwd ?? home ?? null;
     };
 
     setLive({
@@ -1337,7 +1419,7 @@ export default function App() {
         term.focus();
         return true;
       },
-      getWorkspaceRoot: () => explorerRoot ?? launchCwd ?? home ?? null,
+      getWorkspaceRoot: () => effectiveExplorerRoot ?? launchCwd ?? null,
       getActiveFile: () => {
         const t = tabs.find((x) => x.id === activeId);
         return t?.kind === "editor" ? t.path : null;
@@ -1365,6 +1447,17 @@ export default function App() {
         });
         return { tabId, leafId };
       },
+      openClaudeCodeTerminal: () => {
+        const cwd = findCwd();
+        const hooksReady = invoke("agent_enable_claude_hooks").catch(() => {});
+        const { tabId, leafId } = newAgentTab(cwd ?? undefined, "claude");
+        void Promise.all([whenSessionReady(leafId), hooksReady]).then(() => {
+          if (writeToSession(leafId, "claude\r")) {
+            terminalRefs.current.get(leafId)?.focus();
+          }
+        });
+        return { tabId, leafId };
+      },
       readLeafBuffer: (leafId: number) => {
         const buf = terminalRefs.current.get(leafId)?.getBuffer(300);
         return buf ? redactSensitive(buf) : null;
@@ -1374,6 +1467,7 @@ export default function App() {
     setLive,
     activeId,
     tabs,
+    effectiveExplorerRoot,
     explorerRoot,
     launchCwd,
     home,
@@ -1415,6 +1509,7 @@ export default function App() {
           onDirtyChange={handleEditorDirty}
           onCloseTab={disposeTab}
           onCursorChange={handleEditorCursor}
+          onFormat={handleEditorFormat}
         />
       </div>
       <div
@@ -1557,53 +1652,32 @@ export default function App() {
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
-                <ResizablePanelGroup
-                  orientation="vertical"
-                  className="min-h-0 flex-1"
-                >
-                  <ResizablePanel
-                    id="workspace-main"
-                    defaultSize={panelOpen && keysLoaded ? `${100 - aiPanelSizeRef.current}%` : "100%"}
-                    minSize="30%"
-                  >
-                    <div className="relative h-full min-h-0">
-                      {workspaceSurface}
-                    </div>
-                  </ResizablePanel>
-                  {panelOpen && keysLoaded ? (
-                    <>
-                      <ResizableHandle withHandle />
-                      <ResizablePanel
-                        id="ai-agent"
-                        defaultSize={`${aiPanelSizeRef.current}%`}
-                        minSize="15%"
-                        maxSize="60%"
-                        onResize={(size) => {
-                          if (size.asPercentage > 0) {
-                            aiPanelSizeRef.current = Math.round(size.asPercentage);
-                            try {
-                              localStorage.setItem(
-                                AI_PANEL_SIZE_KEY,
-                                String(aiPanelSizeRef.current),
-                              );
-                            } catch {
-                              /* ignore */
-                            }
-                          }
-                        }}
-                      >
-                        {hasComposer ? (
-                          <AiAgentPanel />
-                        ) : (
-                          <AiInputBarConnect
-                            onAdd={() => void openSettingsWindow("models")}
-                          />
-                        )}
-                      </ResizablePanel>
-                    </>
-                  ) : null}
-                </ResizablePanelGroup>
+                <div className="relative h-full min-h-0">
+                  {workspaceSurface}
+                </div>
               </ResizablePanel>
+              {panelOpen && keysLoaded ? (
+                <>
+                  <ResizableHandle withHandle />
+                  <ResizablePanel
+                    id="ai-agent"
+                    defaultSize={`${aiPanelWidthRef.current}px`}
+                    minSize={`${AI_PANEL_MIN_WIDTH}px`}
+                    maxSize={`${AI_PANEL_MAX_WIDTH}px`}
+                    onResize={(size) => {
+                      if (size.inPixels > 0) persistAiPanelWidth(size.inPixels);
+                    }}
+                  >
+                    {hasComposer ? (
+                      <AiAgentPanel />
+                    ) : (
+                      <AiInputBarConnect
+                        onAdd={() => void openSettingsWindow("models")}
+                      />
+                    )}
+                  </ResizablePanel>
+                </>
+              ) : null}
             </ResizablePanelGroup>
           </main>
 
@@ -1614,7 +1688,6 @@ export default function App() {
             home={home}
             onCd={sendCd}
             onWorkspaceChange={switchWorkspace}
-            onOpenMini={openMini}
             hasComposer={hasComposer}
             privateActive={
               activeTab?.kind === "terminal" && activeTab.private === true
@@ -1639,12 +1712,12 @@ export default function App() {
           ) : null}
 
           <AnimatePresence>
-            {miniOpen && hasComposer ? <AiMiniWindow key="ai-mini" /> : null}
             {askPopup ? (
               <SelectionAskAi
                 key="ask-ai-popup"
                 x={askPopup.x}
                 y={askPopup.y}
+                align={askPopup.align}
                 onAsk={onAskFromSelection}
                 onDismiss={() => setAskPopup(null)}
               />
@@ -1670,7 +1743,7 @@ export default function App() {
           <NewEditorDialog
             open={newEditorOpen}
             onOpenChange={setNewEditorOpen}
-            rootPath={explorerRoot ?? home}
+            rootPath={effectiveExplorerRoot}
             onCreated={(path) => openFileTab(path)}
           />
 

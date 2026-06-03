@@ -13,6 +13,7 @@ import {
   type ModelId,
 } from "@/modules/ai/config";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
+import type { VoiceProviderId } from "@/modules/ai/lib/voice/types";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
@@ -99,6 +100,9 @@ export type Preferences = {
   lastWslDistro: string | null;
   zoomLevel: number;
   agentNotifications: boolean;
+  voiceEnabled: boolean;
+  voiceProvider: VoiceProviderId;
+  voiceLanguage: string;
   shortcuts: Record<ShortcutId, KeyBinding[]>;
 };
 
@@ -152,9 +156,12 @@ const KEY_TERMINAL_SCROLLBACK = "terminalScrollback";
 const KEY_LAST_WSL_DISTRO = "lastWslDistro";
 const KEY_ZOOM_LEVEL = "zoomLevel";
 const KEY_AGENT_NOTIFICATIONS = "agentNotifications";
+const KEY_VOICE_ENABLED = "voiceEnabled";
+const KEY_VOICE_PROVIDER = "voiceProvider";
+const KEY_VOICE_LANGUAGE = "voiceLanguage";
 const KEY_SHORTCUTS = "shortcuts";
 
-export const TERMINAL_FONT_SIZE_DEFAULT = 15;
+export const TERMINAL_FONT_SIZE_DEFAULT = 14;
 export const TERMINAL_FONT_SIZE_MIN = 8;
 export const TERMINAL_FONT_SIZE_MAX = 32;
 
@@ -218,6 +225,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   lastWslDistro: null,
   zoomLevel: 1.1,
   agentNotifications: true,
+  voiceEnabled: true,
+  voiceProvider: "browser",
+  voiceLanguage: "zh-CN",
   shortcuts: {} as Record<ShortcutId, KeyBinding[]>,
 };
 
@@ -362,6 +372,17 @@ export async function loadPreferences(): Promise<Preferences> {
     agentNotifications:
       get<boolean>(KEY_AGENT_NOTIFICATIONS) ??
       DEFAULT_PREFERENCES.agentNotifications,
+    voiceEnabled:
+      get<boolean>(KEY_VOICE_ENABLED) ?? DEFAULT_PREFERENCES.voiceEnabled,
+    voiceProvider: ((): Preferences["voiceProvider"] => {
+      const v = get<string>(KEY_VOICE_PROVIDER);
+      if (v === "browser" || v === "openai" || v === "groq" || v === "baidu") {
+        return v;
+      }
+      return DEFAULT_PREFERENCES.voiceProvider;
+    })(),
+    voiceLanguage:
+      get<string>(KEY_VOICE_LANGUAGE) ?? DEFAULT_PREFERENCES.voiceLanguage,
     shortcuts:
       get<Record<ShortcutId, KeyBinding[]>>(KEY_SHORTCUTS) ??
       DEFAULT_PREFERENCES.shortcuts,
@@ -603,6 +624,20 @@ export async function setAgentNotifications(value: boolean): Promise<void> {
   await writePref(KEY_AGENT_NOTIFICATIONS, value);
 }
 
+export async function setVoiceEnabled(value: boolean): Promise<void> {
+  await writePref(KEY_VOICE_ENABLED, value);
+}
+
+export async function setVoiceProvider(
+  value: Preferences["voiceProvider"],
+): Promise<void> {
+  await writePref(KEY_VOICE_PROVIDER, value);
+}
+
+export async function setVoiceLanguage(value: string): Promise<void> {
+  await writePref(KEY_VOICE_LANGUAGE, value.trim() || "zh-CN");
+}
+
 export async function setShortcuts(
   value: Record<ShortcutId, KeyBinding[]> | {},
 ): Promise<void> {
@@ -668,6 +703,9 @@ export async function onPreferencesChange(
     [KEY_LAST_WSL_DISTRO]: "lastWslDistro",
     [KEY_ZOOM_LEVEL]: "zoomLevel",
     [KEY_AGENT_NOTIFICATIONS]: "agentNotifications",
+    [KEY_VOICE_ENABLED]: "voiceEnabled",
+    [KEY_VOICE_PROVIDER]: "voiceProvider",
+    [KEY_VOICE_LANGUAGE]: "voiceLanguage",
     [KEY_SHORTCUTS]: "shortcuts",
   };
   // All preference writes go through writePref(), which broadcasts this event

@@ -82,7 +82,7 @@ export function McpServerEditor() {
       {/* Server List */}
       <div className="flex flex-col gap-2">
         {servers.length === 0 && !showForm && (
-          <p className="text-[14px] text-muted-foreground py-4 text-center">
+          <p className="text-[13px] text-muted-foreground py-4 text-center">
             暂无 MCP 服务器
           </p>
         )}
@@ -98,7 +98,7 @@ export function McpServerEditor() {
               className="size-4"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-medium truncate">{s.name}</p>
+              <p className="text-[13px] font-medium truncate">{s.name}</p>
               <p className="text-[12px] text-muted-foreground font-mono truncate">
                 {s.command} {s.args.join(" ")}
               </p>
@@ -123,7 +123,7 @@ export function McpServerEditor() {
               type="text"
               value={editing.name}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               placeholder="my-mcp-server"
             />
           </div>
@@ -133,7 +133,7 @@ export function McpServerEditor() {
               type="text"
               value={editing.command}
               onChange={(e) => setEditing({ ...editing, command: e.target.value })}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               placeholder="npx"
             />
           </div>
@@ -145,7 +145,7 @@ export function McpServerEditor() {
               onChange={(e) =>
                 setEditing({ ...editing, args: e.target.value.split(/\s+/).filter(Boolean) })
               }
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[14px] font-mono"
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               placeholder="-y @anthropic-ai/mcp-server-filesystem /path"
             />
           </div>

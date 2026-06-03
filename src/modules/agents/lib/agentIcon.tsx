@@ -1,3 +1,4 @@
+import { GenCodeLogoMark } from "@/components/GenCodeLogoMark";
 import {
   ChatGptIcon,
   ClaudeIcon,
@@ -23,16 +24,7 @@ export function AgentIcon({
   className?: string;
 }) {
   if (agent.toLowerCase().includes("gencode")) {
-    return (
-      <img
-        src="/logo.png"
-        alt=""
-        width={size}
-        height={size}
-        className={className}
-        style={{ width: size, height: size }}
-      />
-    );
+    return <GenCodeLogoMark size={size} className={className} />;
   }
   return (
     <HugeiconsIcon

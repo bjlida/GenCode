@@ -2,6 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 import { usePreferencesStore } from "@/modules/settings/preferences";
+import {
+  canPasteAt,
+  getExplorerClipboard,
+  setExplorerClipboard,
+} from "./explorerClipboard";
 import { listenFsChanged, watchAdd, watchRemove } from "./watch";
 
 export type DirEntry = {
@@ -430,6 +435,48 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     [fetchChildren, options],
   );
 
+  const copyPath = useCallback((path: string) => {
+    setExplorerClipboard({ path, mode: "copy" });
+  }, []);
+
+  const cutPath = useCallback((path: string) => {
+    setExplorerClipboard({ path, mode: "cut" });
+  }, []);
+
+  const pasteAt = useCallback(
+    async (targetDir: string) => {
+      const clip = getExplorerClipboard();
+      if (!clip || !canPasteAt(targetDir, clip.path)) return;
+
+      const baseName = clip.path.slice(clip.path.lastIndexOf("/") + 1);
+      const dest = joinPath(targetDir, baseName);
+      const srcParent = dirname(clip.path);
+
+      try {
+        if (clip.mode === "cut") {
+          await invoke("fs_rename", {
+            from: clip.path,
+            to: dest,
+            workspace: currentWorkspaceEnv(),
+          });
+          options?.onPathRenamed?.(clip.path, dest);
+          setExplorerClipboard(null);
+          await fetchChildren(srcParent);
+        } else {
+          await invoke("fs_copy", {
+            from: clip.path,
+            to: dest,
+            workspace: currentWorkspaceEnv(),
+          });
+        }
+        await fetchChildren(targetDir);
+      } catch (e) {
+        console.error("paste failed:", e);
+      }
+    },
+    [fetchChildren, options],
+  );
+
   return {
     nodes,
     expanded,
@@ -445,6 +492,9 @@ export function useFileTree(rootPath: string | null, options?: Options) {
     cancelRename,
     commitRename,
     deletePath,
+    copyPath,
+    cutPath,
+    pasteAt,
     joinPath,
   };
 }

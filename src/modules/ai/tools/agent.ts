@@ -43,15 +43,15 @@ export function buildManagedAgentTools(ctx: ToolContext) {
         if (store.getBySessionId(sessionId)) {
           return {
             error:
-              "此会话中已有 Claude Code 代理在运行；请使用 send_to_agent 向其发送后续指令",
+              "此会话中已有 Claude Code 在运行；请使用 send_to_agent 向其发送后续指令",
           };
         }
         const spawned = ctx.spawnAgent(prompt);
-        if (!spawned) return { error: "无法启动代理" };
+        if (!spawned) return { error: "无法启动 Claude Code" };
         return {
           ok: true,
           tab_id: spawned.tabId,
-          message: "Claude Code 代理已启动，即将开始工作。",
+          message: "Claude Code 已启动，即将开始工作。",
         };
       },
     }),
@@ -75,7 +75,7 @@ export function buildManagedAgentTools(ctx: ToolContext) {
         if (!managed) {
           return {
             error:
-              "此会话中无活跃 Claude Code 代理；请使用 spawn_coding_agent 启动一个",
+              "此会话中无活跃 Claude Code；请使用 spawn_coding_agent 启动一个",
           };
         }
         const oneLine = instruction.replace(/\s*\r?\n\s*/g, " ").trim();
@@ -85,7 +85,7 @@ export function buildManagedAgentTools(ctx: ToolContext) {
         }
         if (!writeToSession(managed.leafId, oneLine)) {
           store.remove(managed.leafId);
-          return { error: "代理终端不再可用（可能已关闭）" };
+          return { error: "Claude Code 终端不再可用（可能已关闭）" };
         }
         setTimeout(() => writeToSession(managed.leafId, "\r"), SUBMIT_DELAY_MS);
         store.bumpRound(managed.leafId);

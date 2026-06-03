@@ -312,7 +312,7 @@ export const CC_COMMANDS: CcCommand[] = [
     command: "/add-dir",
     syntax: "/add-dir <path>",
     zhName: "添加目录",
-    zhDescription: "将额外工作目录添加到上下文，Claude 可访问其中的文件。",
+    zhDescription: "添加一个新的工作目录，Claude 可访问其中的文件。",
     category: "config",
   },
   {
@@ -390,8 +390,8 @@ export const CC_COMMANDS: CcCommand[] = [
   {
     command: "/agents",
     syntax: "/agents",
-    zhName: "代理管理",
-    zhDescription: "创建和管理自定义代理（sub-agents）。",
+    zhName: "技能管理",
+    zhDescription: "管理技能（sub-agents）。",
     category: "plugins",
   },
   {

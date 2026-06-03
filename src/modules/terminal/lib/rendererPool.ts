@@ -1,4 +1,4 @@
-import { detectMonoFontFamily } from "@/lib/fonts";
+import { resolveMonoFontFamily } from "@/lib/fonts";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { buildTerminalTheme } from "@/styles/terminalTheme";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -92,7 +92,7 @@ function bgActive(
 function termOptions() {
   const prefs = usePreferencesStore.getState();
   return {
-    fontFamily: prefs.terminalFontFamily || detectMonoFontFamily(),
+    fontFamily: resolveMonoFontFamily(prefs.terminalFontFamily),
     letterSpacing: prefs.terminalLetterSpacing,
     fontSize: Math.max(4, Math.round(prefs.terminalFontSize * prefs.zoomLevel)),
     theme: buildTerminalTheme(),
@@ -281,6 +281,12 @@ export function acquireSlot(params: AcquireParams): Slot {
   return pick.slot;
 }
 
+function resetWebglAfterHostMove(slot: Slot): void {
+  if (!usePreferencesStore.getState().terminalWebglEnabled) return;
+  if (slot.webglAddon) disposeSlotWebgl(slot);
+  attachWebgl(slot);
+}
+
 function bindSlot(slot: Slot, p: AcquireParams): void {
   const stale =
     !slot.webglAddon || performance.now() - slot.lastUsedAt > SLOT_STALE_MS;
@@ -290,8 +296,10 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
   cancelPendingUnhide(slot);
   slot.host.style.visibility = "hidden";
 
+  let hostMoved = false;
   if (slot.host.parentNode !== p.container) {
     p.container.appendChild(slot.host);
+    hostMoved = true;
   }
 
   slot.term.options.disableStdin = p.shellExited;
@@ -355,6 +363,8 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
     adapter?.resolveLeaf(p.leafId)?.kickPty(slot.term.cols, slot.term.rows);
   }
 
+  if (hostMoved) resetWebglAfterHostMove(slot);
+
   scheduleUnhide(slot, stale);
 
   p.onSearchReady(slot.searchAddon);
@@ -365,12 +375,13 @@ function scheduleUnhide(slot: Slot, stale: boolean): void {
     slot.unhideRaf = requestAnimationFrame(() => {
       slot.unhideRaf = null;
       slot.host.style.visibility = "";
-      if (stale) {
-        if (!slot.webglAddon) attachWebgl(slot);
-        try {
-          slot.term.refresh(0, slot.term.rows - 1);
-        } catch {}
-      }
+      if (stale && !slot.webglAddon) attachWebgl(slot);
+      // WebGL glyphs often stay blank after reparenting from the off-screen
+      // recycler (or after zoom-exempt layout); refresh every unhide, not only
+      // when the slot is "stale".
+      try {
+        slot.term.refresh(0, slot.term.rows - 1);
+      } catch {}
       const leafId = slot.currentLeafId;
       if (leafId !== null && adapter?.isLeafFocused(leafId)) {
         slot.term.focus();
@@ -388,8 +399,15 @@ function cancelPendingUnhide(slot: Slot): void {
 
 function rewireSlot(slot: Slot, p: AcquireParams): void {
   slot.lastUsedAt = performance.now();
+  let hostMoved = false;
   if (slot.host.parentNode !== p.container) {
     p.container.appendChild(slot.host);
+    hostMoved = true;
+  }
+  if (p.altScreen) {
+    p.drainRing(() => {});
+  } else {
+    p.drainRing((bytes) => slot.term.write(bytes));
   }
   setupResizeObserver(slot, p);
   slot.fitAddon.fit();
@@ -400,6 +418,12 @@ function rewireSlot(slot: Slot, p: AcquireParams): void {
   }
   slot.lastCols = slot.term.cols;
   slot.lastRows = slot.term.rows;
+  if (hostMoved) {
+    resetWebglAfterHostMove(slot);
+    try {
+      slot.term.refresh(0, slot.term.rows - 1);
+    } catch {}
+  }
   p.onSearchReady(slot.searchAddon);
 }
 
@@ -629,7 +653,7 @@ export function applyLetterSpacing(spacing: number): void {
 }
 
 export function applyFontFamily(family: string): void {
-  const resolved = family || detectMonoFontFamily();
+  const resolved = resolveMonoFontFamily(family);
   for (const slot of slots) {
     if (slot.term.options.fontFamily === resolved) continue;
     slot.term.options.fontFamily = resolved;

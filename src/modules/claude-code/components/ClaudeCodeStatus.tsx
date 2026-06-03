@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useClaudeCodeStore, fetchRuntimeStatus } from "@/modules/claude-code";
+import { useChatStore } from "@/modules/ai";
 import { ClaudeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
@@ -7,6 +8,9 @@ import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
 export function ClaudeCodeStatus() {
   const status = useClaudeCodeStore((s) => s.runtimeStatus);
   const setStatus = useClaudeCodeStore((s) => s.setRuntimeStatus);
+  const openClaudeCodeTerminal = useChatStore(
+    (s) => s.live.openClaudeCodeTerminal,
+  );
 
   useEffect(() => {
     void fetchRuntimeStatus().then(setStatus);
@@ -17,7 +21,9 @@ export function ClaudeCodeStatus() {
   const handleClick = () => {
     if (!status.installed) {
       void openSettingsWindow("claude-code");
+      return;
     }
+    openClaudeCodeTerminal();
   };
 
   return (
@@ -26,7 +32,7 @@ export function ClaudeCodeStatus() {
       onClick={handleClick}
       title={
         status.installed
-          ? `Claude Code ${status.version ?? ""}`
+          ? `新建 Claude 终端${status.version ? ` (${status.version})` : ""}`
           : "Claude Code 未安装 — 点击设置"
       }
       className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[13px] transition-colors ${

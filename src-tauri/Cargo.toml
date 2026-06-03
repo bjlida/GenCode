@@ -1,6 +1,6 @@
 [package]
 name = "gencode"
-version = "0.7.3"
+version = "0.8.0"
 description = "GenCode/灵码 ADE — AI-native developer terminal emulator (forked from Terax)"
 authors = ["crynta", "bjlida"]
 license = "Apache-2.0"
@@ -44,6 +44,7 @@ reqwest = { version = "0.12", default-features = false, features = [
 	"stream",
 	"blocking",
 ] }
+base64 = "0.22"
 bytes = "1"
 futures-util = "0.3"
 tokio = { version = "1", default-features = false, features = ["rt"] }

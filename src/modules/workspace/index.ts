@@ -8,3 +8,10 @@ export {
   type WorkspaceEnv,
   type WslDistro,
 } from "./env";
+export {
+  clearLastWorkspacePath,
+  readLastWorkspacePath,
+  validateWorkspacePath,
+  writeLastWorkspacePath,
+  type LastWorkspacePaths,
+} from "./lastPath";

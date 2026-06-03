@@ -42,7 +42,7 @@ export function WindowControls({ closeOnly = false }: Props) {
       {!closeOnly && (
         <>
           <CtlButton ariaLabel="最小化" onClick={() => void w.minimize()}>
-            <HugeiconsIcon icon={MinusSignIcon} size={15} strokeWidth={2} />
+            <HugeiconsIcon icon={MinusSignIcon} size={17} strokeWidth={2} />
           </CtlButton>
           <CtlButton
             ariaLabel={maximized ? "还原" : "最大化"}
@@ -50,14 +50,14 @@ export function WindowControls({ closeOnly = false }: Props) {
           >
             <HugeiconsIcon
               icon={maximized ? Copy01Icon : SquareIcon}
-              size={15}
+              size={17}
               strokeWidth={2}
             />
           </CtlButton>
         </>
       )}
       <CtlButton ariaLabel="关闭" onClick={() => void w.close()} danger>
-        <HugeiconsIcon icon={Cancel01Icon} size={17} strokeWidth={2} />
+        <HugeiconsIcon icon={Cancel01Icon} size={18} strokeWidth={2} />
       </CtlButton>
     </div>
   );
@@ -81,7 +81,7 @@ function CtlButton({
       title={ariaLabel}
       onClick={onClick}
       className={cn(
-        "grid size-7 place-items-center rounded-[7px] text-muted-foreground transition-colors",
+        "grid size-8 place-items-center rounded-[7px] text-muted-foreground transition-colors",
         danger
           ? "hover:bg-destructive/15 hover:text-destructive"
           : "hover:bg-accent hover:text-foreground",

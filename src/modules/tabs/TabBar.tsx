@@ -87,7 +87,7 @@ export function TabBar({
           value={String(activeId)}
           onValueChange={(v) => onSelect(Number(v))}
         >
-          <TabsList className="h-8 w-max gap-0.5 bg-transparent p-0">
+          <TabsList className="h-9 w-max gap-0.5 bg-transparent p-0">
             {tabs.map((t) => {
               const isPreview = t.kind === "editor" && (t as EditorTab).preview;
               return (
@@ -97,7 +97,7 @@ export function TabBar({
                   data-tab-id={t.id}
                   onDoubleClick={() => isPreview && onPin(t.id)}
                   className={cn(
-                    "group h-[26px] shrink-0 gap-1.5 rounded-[6px] text-[11px] text-muted-foreground transition-colors data-[state=active]:bg-accent/80 data-[state=active]:text-foreground hover:text-foreground/80 justify-between",
+                    "group h-[28px] shrink-0 gap-1.5 rounded-[6px] text-[11px] text-muted-foreground transition-colors data-[state=active]:bg-accent/80 data-[state=active]:text-foreground hover:text-foreground/80 justify-between",
                     compact
                       ? "px-1.5!"
                       : tabs.length === 1
@@ -136,7 +136,7 @@ export function TabBar({
                     >
                       <HugeiconsIcon
                         icon={Cancel01Icon}
-                        size={11}
+                        size={12}
                         strokeWidth={2}
                       />
                     </span>
@@ -151,10 +151,10 @@ export function TabBar({
             <Button
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              className="size-8 shrink-0 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               title="新建标签页"
             >
-              <HugeiconsIcon icon={PlusSignIcon} size={14} strokeWidth={2} />
+              <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={2} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-44">
@@ -212,13 +212,13 @@ export function TabBar({
 function TabIcon({ tab }: { tab: Tab }) {
   if (tab.kind === "editor" || tab.kind === "markdown") {
     const url = fileIconUrl(tab.title);
-    return url ? <img src={url} alt="" className="size-3.5 shrink-0" /> : null;
+    return url ? <img src={url} alt="" className="size-4 shrink-0" /> : null;
   }
   if (tab.kind === "preview") {
     return (
       <HugeiconsIcon
         icon={Globe02Icon}
-        size={14}
+        size={16}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -228,7 +228,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={GitCompareIcon}
-        size={14}
+        size={16}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -238,7 +238,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={IncognitoIcon}
-        size={14}
+        size={16}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -248,7 +248,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={GitCompareIcon}
-        size={14}
+        size={16}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -258,7 +258,7 @@ function TabIcon({ tab }: { tab: Tab }) {
     return (
       <HugeiconsIcon
         icon={Clock01Icon}
-        size={14}
+        size={16}
         strokeWidth={2}
         className="shrink-0"
       />
@@ -267,7 +267,7 @@ function TabIcon({ tab }: { tab: Tab }) {
   return (
     <HugeiconsIcon
       icon={ComputerTerminal02Icon}
-      size={14}
+      size={16}
       strokeWidth={2}
       className="shrink-0"
     />

@@ -12,14 +12,14 @@ export function SettingRow({ title, description, children, className }: Props) {
   return (
     <div
       className={cn(
-        "flex items-start justify-between gap-4 rounded-lg border border-border/50 bg-background px-3 py-2",
+        "flex items-center justify-between gap-6 border-b border-border/35 py-3.5 last:border-b-0",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[12.5px] font-medium">{title}</span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[13px] font-medium leading-snug">{title}</span>
         {description ? (
-          <span className="text-[10.5px] leading-relaxed text-muted-foreground">
+          <span className="text-[11.5px] leading-relaxed text-muted-foreground">
             {description}
           </span>
         ) : null}

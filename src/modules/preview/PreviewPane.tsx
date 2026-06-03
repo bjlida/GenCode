@@ -76,7 +76,7 @@ export const PreviewPane = forwardRef<PreviewPaneHandle, Props>(
           onReload={() => setNonce((n) => n + 1)}
         />
         {showXfoHint ? (
-          <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-border/60 bg-amber-500/8 px-3 text-[15px] text-amber-600 dark:text-amber-400">
+          <div className="flex h-7 shrink-0 items-center gap-1.5 border-b border-border/60 bg-amber-500/8 px-3 text-[13px] text-amber-600 dark:text-amber-400">
             <HugeiconsIcon
               icon={Alert02Icon}
               size={12}
@@ -137,7 +137,7 @@ function SuspendedState({ onReload }: { onReload: () => void }) {
         <HugeiconsIcon icon={Globe02Icon} size={18} strokeWidth={1.5} />
       </div>
       <div className="space-y-1">
-        <p className="text-[15px] font-medium text-foreground">
+        <p className="text-[13px] font-medium text-foreground">
           Preview suspended
         </p>
         <p className="max-w-xs text-[13px] leading-relaxed text-muted-foreground">
@@ -147,7 +147,7 @@ function SuspendedState({ onReload }: { onReload: () => void }) {
       <button
         type="button"
         onClick={onReload}
-        className="rounded-md border border-border/60 bg-card px-3 py-1 text-[15px] hover:bg-accent/50"
+        className="rounded-md border border-border/60 bg-card px-3 py-1 text-[13px] hover:bg-accent/50"
       >
         Reload
       </button>

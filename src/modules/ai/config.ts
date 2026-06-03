@@ -624,6 +624,11 @@ export function modelKeepsReasoning(id: ModelId): boolean {
   return (m.tags?.includes("reasoning") ?? false) || FREEFORM_PROVIDERS.has(m.provider);
 }
 
+export function modelSupportsVision(id: ModelId): boolean {
+  const m = getModel(id);
+  return m.tags?.includes("vision") ?? false;
+}
+
 export const DEFAULT_MODEL_ID: ModelId = "gpt-5.4-mini";
 
 /** Approximate context window (in tokens) per model. Used for the

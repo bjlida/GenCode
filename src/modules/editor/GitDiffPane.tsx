@@ -251,16 +251,16 @@ export function GitDiffPane({ source, chipLabel, active }: Props) {
         <div className="flex min-w-0 items-center gap-2">
           <Badge
             variant="outline"
-            className="text-[15px] uppercase tracking-wide"
+            className="text-[13px] uppercase tracking-wide"
           >
             {chipLabel ?? mode}
           </Badge>
           {isBinary ? (
-            <Badge variant="secondary" className="text-[15px]">
+            <Badge variant="secondary" className="text-[13px]">
               二进制 / 补丁视图
             </Badge>
           ) : isTooLarge ? (
-            <Badge variant="secondary" className="text-[15px]">
+            <Badge variant="secondary" className="text-[13px]">
               大文件 / 补丁视图
             </Badge>
           ) : null}
@@ -293,7 +293,7 @@ export function GitDiffPane({ source, chipLabel, active }: Props) {
             加载差异中…
           </div>
         ) : state.kind === "error" ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-[15px] text-destructive">
+          <div className="flex h-full items-center justify-center px-6 text-center text-[13px] text-destructive">
             {state.message}
           </div>
         ) : useFallback ? (

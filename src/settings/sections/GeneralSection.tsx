@@ -43,6 +43,8 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect } from "react";
 import { SectionHeader } from "../components/SectionHeader";
 import { SettingRow } from "../components/SettingRow";
+import { SettingsCard } from "../components/SettingsCard";
+import { VoiceInputSection } from "./VoiceInputSection";
 
 const APPEARANCE: {
   id: ThemePref;
@@ -58,28 +60,6 @@ const LETTER_SPACINGS = [-4, -3, -2, -1, 0, 1, 2, 3, 4] as const;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.05;
-
-function SettingsCard({
-  title,
-  children,
-  className,
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={cn(
-        "flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm",
-        className,
-      )}
-    >
-      <h3 className="text-[12px] font-semibold text-foreground">{title}</h3>
-      {children}
-    </section>
-  );
-}
 
 export function GeneralSection() {
   const { mode, setMode } = useTheme();
@@ -127,56 +107,57 @@ export function GeneralSection() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <SectionHeader
         title="通用"
         description="外观模式、编辑器与启动项。"
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="flex flex-col gap-4">
         <SettingsCard title="外观">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-wrap gap-2 py-3">
             {APPEARANCE.map((o) => (
               <button
                 key={o.id}
                 type="button"
                 onClick={() => setMode(o.id)}
                 className={cn(
-                  "group flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border bg-background transition-all",
+                  "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-[12.5px] transition-all",
                   mode === o.id
-                    ? "border-foreground/60 ring-1 ring-foreground/20"
-                    : "border-border/30 hover:border-border",
+                    ? "border-foreground/50 bg-accent font-medium text-foreground"
+                    : "border-border/40 bg-background text-muted-foreground hover:border-border hover:text-foreground",
                 )}
               >
-                <HugeiconsIcon icon={o.icon} size={18} strokeWidth={1.5} />
-                <span className="text-[11.5px]">{o.label}</span>
+                <HugeiconsIcon icon={o.icon} size={14} strokeWidth={1.5} />
+                {o.label}
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="border-t border-border/35 pb-3 text-[11.5px] text-muted-foreground">
             主题、背景与更多自定义选项请前往{" "}
             <strong className="font-medium text-foreground">主题</strong> 页。
           </p>
         </SettingsCard>
 
         <SettingsCard title="缩放">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11.5px] text-muted-foreground">
-                UI 缩放级别
-              </span>
-              <span className="tabular-nums text-[11px] text-muted-foreground">
+          <SettingRow
+            title="UI 缩放级别"
+            description="调整界面整体显示大小。"
+          >
+            <div className="flex w-44 flex-col items-end gap-2">
+              <span className="tabular-nums text-[12px] text-muted-foreground">
                 {Math.round(zoomLevel * 100)}%
               </span>
+              <Slider
+                className="w-full"
+                value={[zoomLevel]}
+                min={ZOOM_MIN}
+                max={ZOOM_MAX}
+                step={ZOOM_STEP}
+                onValueChange={(v) => void setZoomLevel(v[0] ?? 1)}
+              />
             </div>
-            <Slider
-              value={[zoomLevel]}
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              onValueChange={(v) => void setZoomLevel(v[0] ?? 1)}
-            />
-          </div>
+          </SettingRow>
         </SettingsCard>
 
         <SettingsCard title="编辑器">
@@ -212,10 +193,10 @@ export function GeneralSection() {
           </SettingRow>
         </SettingsCard>
 
-        <SettingsCard title="代理" className="lg:col-span-1">
+        <SettingsCard title="通知">
           <SettingRow
-            title="代理通知"
-            description="托管代理需要输入或完成时发送提醒。"
+            title="运行通知"
+            description="AI Agent 或 Claude Code 会话需要输入或完成时发送提醒。"
           >
             <Switch
               checked={agentNotifications}
@@ -244,9 +225,12 @@ export function GeneralSection() {
             />
           </SettingRow>
         </SettingsCard>
-      </div>
 
-      <SettingsCard title="终端">
+        <SettingsCard title="语音输入">
+          <VoiceInputSection />
+        </SettingsCard>
+
+        <SettingsCard title="终端">
         <SettingRow
           title={
             <span className="inline-flex items-center gap-1.5">
@@ -286,7 +270,7 @@ export function GeneralSection() {
             value={terminalFontFamily}
             placeholder="自动检测"
             onChange={(e) => void setTerminalFontFamily(e.target.value)}
-            className="h-8 w-48 rounded-md border border-border bg-background px-2.5 text-[12px] outline-none focus:border-foreground/40"
+            className="h-8 w-48 rounded-xl border border-border bg-background px-2.5 text-[12px] outline-none focus:border-foreground/40"
           />
         </SettingRow>
         <SettingRow
@@ -350,7 +334,8 @@ export function GeneralSection() {
             </SelectContent>
           </Select>
         </SettingRow>
-      </SettingsCard>
+        </SettingsCard>
+      </div>
     </div>
   );
 }

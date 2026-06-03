@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 
+use super::config;
 use tauri::AppHandle;
 #[cfg(target_os = "linux")]
 use tauri::Manager;
@@ -46,11 +47,16 @@ pub fn resolve_api_key(app: &AppHandle) -> Result<Option<String>, String> {
 }
 
 /// Build the environment variables for a Claude Code process.
+const CHINESE_LOCALE: &str = "zh_CN.UTF-8";
+
 pub fn build_env(
     app: &AppHandle,
     workspace_root: &str,
     extra_env: &HashMap<String, String>,
 ) -> Result<HashMap<String, String>, String> {
+    // Best-effort: Claude Code reads locale from settings.json at startup.
+    let _ = config::ensure_chinese_locale();
+
     let mut env = HashMap::new();
 
     // Pass the API key if available.
@@ -62,9 +68,11 @@ pub fn build_env(
     env.insert("GENCODE_TERMINAL".to_string(), "1".to_string());
     env.insert("GENCODE_WORKSPACE_ROOT".to_string(), workspace_root.to_string());
 
-    // Ensure UTF-8 output.
-    env.insert("LANG".to_string(), "en_US.UTF-8".to_string());
-    env.insert("LC_ALL".to_string(), "en_US.UTF-8".to_string());
+    // Chinese locale for Claude Code CLI UI and subprocess output.
+    env.insert("LANG".to_string(), CHINESE_LOCALE.to_string());
+    env.insert("LC_ALL".to_string(), CHINESE_LOCALE.to_string());
+    #[cfg(unix)]
+    env.insert("LC_MESSAGES".to_string(), CHINESE_LOCALE.to_string());
 
     // Merge any caller-supplied extras (overrides above defaults).
     for (k, v) in extra_env {
