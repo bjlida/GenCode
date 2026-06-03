@@ -174,7 +174,7 @@ export function AiStatusBarControls() {
         </Kbd>
       </Button>
       <IconBtn
-        title={miniOpen ? "迷你窗口已打开" : "打开对话"}
+        title={miniOpen ? "弹出窗口已打开" : "弹出对话窗口"}
         onClick={openMini}
         disabled={miniOpen}
       >

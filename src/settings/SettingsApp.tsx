@@ -4,56 +4,23 @@ import { IS_MAC, USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import type { SettingsTab } from "@/modules/settings/openSettingsWindow";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import {
-  AiScanIcon,
-  InformationCircleIcon,
-  PaintBoardIcon,
-  Settings01Icon,
-  UserMultiple02Icon,
-  KeyboardIcon,
-} from "@hugeicons/core-free-icons";
+  normalizeSettingsTab,
+  SETTINGS_TABS,
+} from "@/modules/settings/settingsTabs";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { JSX, useEffect, useState } from "react";
-import { AboutSection } from "./sections/AboutSection";
-import { AgentsSection } from "./sections/AgentsSection";
-import { GeneralSection } from "./sections/GeneralSection";
-import { ModelsSection } from "./sections/ModelsSection";
-import { ShortcutsSection } from "./sections/ShortcutsSection";
-import { ThemesSection } from "./sections/ThemesSection";
-
-const TABS: { id: SettingsTab; label: string; icon: typeof Settings01Icon, component: () => JSX.Element }[] =
-  [
-    { id: "general", label: "通用", icon: Settings01Icon, component: GeneralSection },
-    { id: "themes", label: "主题", icon: PaintBoardIcon, component: ThemesSection },
-    { id: "shortcuts", label: "快捷键", icon: KeyboardIcon, component: ShortcutsSection },
-    { id: "models", label: "模型", icon: AiScanIcon, component: ModelsSection },
-    { id: "agents", label: "技能", icon: UserMultiple02Icon, component: AgentsSection },
-    { id: "about", label: "关于", icon: InformationCircleIcon, component: AboutSection },
-  ];
-
-const VALID_TABS: SettingsTab[] = [
-  "general",
-  "themes",
-  "shortcuts",
-  "models",
-  "agents",
-  "about",
-];
+import { useEffect, useState } from "react";
 
 function readInitialTab(): SettingsTab {
   if (typeof window === "undefined") return "general";
   const url = new URL(window.location.href);
-  const t = url.searchParams.get("tab");
-  // Back-compat: legacy "ai" / "connections" → "models".
-  if (t === "ai" || t === "connections") return "models";
-  if (t && (VALID_TABS as string[]).includes(t)) return t as SettingsTab;
-  return "general";
+  return normalizeSettingsTab(url.searchParams.get("tab"));
 }
 
 export function SettingsApp() {
   const [active, setActive] = useState<SettingsTab>(readInitialTab);
   const init = usePreferencesStore((s) => s.init);
-  const ActiveSection = TABS.find(t => t.id === active)?.component;
+  const ActiveSection = SETTINGS_TABS.find((t) => t.id === active)?.component;
 
   useEffect(() => {
     void init();
@@ -61,16 +28,10 @@ export function SettingsApp() {
 
   useEffect(() => {
     const apply = (detail: string) => {
-      if (detail === "ai" || detail === "connections") {
-        setActive("models");
-        return;
-      }
-      if ((VALID_TABS as string[]).includes(detail)) {
-        setActive(detail as SettingsTab);
-      }
+      setActive(normalizeSettingsTab(detail));
     };
     const unlistenPromise = getCurrentWebviewWindow().listen<string>(
-      "terax:settings-tab",
+      "gencode:settings-tab",
       (e) => apply(e.payload),
     );
     return () => {
@@ -79,10 +40,10 @@ export function SettingsApp() {
   }, []);
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-muted/45 text-foreground select-none dark:bg-[#080808]">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground select-none">
       <header
         data-tauri-drag-region
-        className={`flex h-10 shrink-0 items-center border-b border-border/50 bg-card/95 shadow-sm supports-[backdrop-filter]:bg-card/85 supports-[backdrop-filter]:backdrop-blur-xl ${IS_MAC ? "pr-3 pl-22" : "pr-3 pl-3"
+        className={`flex h-10 shrink-0 items-center border-b border-border/50 bg-card shadow-sm ${IS_MAC ? "pr-3 pl-22" : "pr-3 pl-3"
           }`}
       >
         <Tabs
@@ -93,7 +54,7 @@ export function SettingsApp() {
           data-tauri-drag-region
         >
           <TabsList className="mx-auto h-7 bg-muted/40 px-2">
-            {TABS.map((t) => (
+            {SETTINGS_TABS.map((t) => (
               <TabsTrigger
                 key={t.id}
                 value={t.id}
@@ -108,7 +69,7 @@ export function SettingsApp() {
         {USE_CUSTOM_WINDOW_CONTROLS && <WindowControls closeOnly />}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main className="min-h-0 flex-1 overflow-y-auto bg-background px-6 pt-5 pb-6">
         <div className="mx-auto w-full max-w-140 rounded-xl border border-border/60 bg-card px-5 py-4 shadow-sm">
           {ActiveSection && <ActiveSection />}
         </div>

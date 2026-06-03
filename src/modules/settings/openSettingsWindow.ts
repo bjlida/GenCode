@@ -1,15 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
+import { useSettingsOverlayStore } from "./settingsOverlayStore";
+import type { SettingsTab } from "./openSettingsWindow.types";
 
-export type SettingsTab =
-  | "general"
-  | "themes"
-  | "shortcuts"
-  | "models"
-  | "agents"
-  | "skills"
-  | "about"
-  | "claude-code";
+export type { SettingsTab } from "./openSettingsWindow.types";
 
 export async function openSettingsWindow(tab?: SettingsTab): Promise<void> {
-  await invoke("open_settings_window", { tab: tab ?? null });
+  useSettingsOverlayStore.getState().openSettings(tab);
 }

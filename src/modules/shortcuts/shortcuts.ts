@@ -30,7 +30,10 @@ export type ShortcutId =
   | "settings.open"
   | "sidebar.toggle"
   | "editor.undo"
-  | "editor.redo";
+  | "editor.redo"
+  | "editor.replace"
+  | "editor.format"
+  | "claudeCode.commands";
 
 export type ShortcutGroup =
   | "General"
@@ -39,7 +42,8 @@ export type ShortcutGroup =
   | "Search"
   | "AI"
   | "View"
-  | "Editor";
+  | "Editor"
+  | "Claude Code";
 
 export type KeyBinding = {
   key: string;
@@ -173,6 +177,12 @@ export const SHORTCUTS: Shortcut[] = [
     defaultBindings: [{ [MOD_PROP]: true, key: "l" }],
   },
   {
+    id: "claudeCode.commands",
+    label: "Claude Code command reference",
+    group: "Claude Code",
+    defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "?" }],
+  },
+  {
     id: "sidebar.toggle",
     label: "Toggle file explorer",
     group: "View",
@@ -226,6 +236,18 @@ export const SHORTCUTS: Shortcut[] = [
     label: "Redo",
     group: "Editor",
     defaultBindings: [{ [MOD_PROP]: true, key: "y" }],
+  },
+  {
+    id: "editor.replace",
+    label: "Find and replace",
+    group: "Editor",
+    defaultBindings: [{ [MOD_PROP]: true, key: "h" }],
+  },
+  {
+    id: "editor.format",
+    label: "Format document",
+    group: "Editor",
+    defaultBindings: [{ [MOD_PROP]: true, shift: true, alt: true, key: "f" }],
   },
 ];
 

@@ -2,10 +2,12 @@ import { redo, undo } from "@codemirror/commands";
 import {
   findNext,
   findPrevious,
+  replaceAll,
+  replaceNext,
   SearchQuery,
   setSearchQuery,
 } from "@codemirror/search";
-import { keymap } from "@codemirror/view";
+import { keymap, EditorView } from "@codemirror/view";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { EDITOR_THEME_EXT } from "./lib/themes";
@@ -22,6 +24,7 @@ import {
   buildSharedExtensions,
   languageCompartment,
   vimCompartment,
+  wrapCompartment,
 } from "./lib/extensions";
 import { initVimGlobals, vimHandlersExtension } from "./lib/vim";
 
@@ -32,6 +35,8 @@ import { inlineCompletion } from "./lib/autocomplete/inlineExtension";
 import { getKey } from "@/modules/ai/lib/keyring";
 import { onKeysChanged } from "@/modules/settings/store";
 
+export type EditorCursorPosition = { line: number; col: number };
+
 export type EditorPaneHandle = {
   setQuery: (q: string) => void;
   findNext: () => void;
@@ -41,8 +46,14 @@ export type EditorPaneHandle = {
   getSelection: () => string | null;
   getSelectionRect: () => { left: number; top: number; width: number } | null;
   getPath: () => string;
+  getCursorPosition: () => EditorCursorPosition | null;
+  setReplaceQuery: (replace: string) => void;
+  replaceNext: () => void;
+  replaceAll: () => void;
   /** Re-read the file from disk. Skips silently if the buffer is dirty. */
   reload: () => boolean;
+  /** Save buffer to disk. Returns false if nothing to save or save failed. */
+  save: () => Promise<boolean>;
   /** Apply CodeMirror's undo/redo commands. */
   undo: () => void;
   redo: () => void;
@@ -53,6 +64,7 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: () => void;
   onClose?: () => void;
+  onCursorChange?: (pos: EditorCursorPosition | null) => void;
 };
 
 function formatBytes(n: number): string {
@@ -62,13 +74,14 @@ function formatBytes(n: number): string {
 }
 
 export const EditorPane = forwardRef<EditorPaneHandle, Props>(
-  function EditorPane({ path, onDirtyChange, onSaved, onClose }, ref) {
+  function EditorPane({ path, onDirtyChange, onSaved, onClose, onCursorChange }, ref) {
     const { doc, onChange, save, reload } = useDocument({ path, onDirtyChange });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
     const cmRef = useRef<ReactCodeMirrorRef>(null);
     const editorThemeId = usePreferencesStore((s) => s.editorTheme);
     const vimMode = usePreferencesStore((s) => s.vimMode);
+    const editorWordWrap = usePreferencesStore((s) => s.editorWordWrap);
     const languageRef = useRef<string | null>(null);
     const apiKeyRef = useRef<string | null>(null);
 
@@ -114,12 +127,21 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     const pathRef = useRef(path);
     pathRef.current = path;
 
+    const onCursorChangeRef = useRef(onCursorChange);
+    onCursorChangeRef.current = onCursorChange;
+
+    const searchQueryRef = useRef("");
+    const replaceQueryRef = useRef("");
+
     const extensions = useMemo(
       () => [
-        // basicSetup is added before user extensions by @uiw/react-codemirror,
-        // so we must elevate vim's precedence to win the keymap.
         vimCompartment.of(
           usePreferencesStore.getState().vimMode ? Prec.highest(vim()) : [],
+        ),
+        wrapCompartment.of(
+          usePreferencesStore.getState().editorWordWrap
+            ? EditorView.lineWrapping
+            : [],
         ),
         vimHandlersExtension(() => ({
           save: () => {
@@ -175,6 +197,16 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
             },
           },
         ]),
+        EditorView.updateListener.of((update) => {
+          if (!update.selectionSet && !update.docChanged) return;
+          const view = update.view;
+          const pos = view.state.selection.main.head;
+          const line = view.state.doc.lineAt(pos);
+          onCursorChangeRef.current?.({
+            line: line.number,
+            col: pos - line.from + 1,
+          });
+        }),
       ],
       [],
     );
@@ -188,6 +220,16 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         ),
       });
     }, [vimMode]);
+
+    useEffect(() => {
+      const view = cmRef.current?.view;
+      if (!view) return;
+      view.dispatch({
+        effects: wrapCompartment.reconfigure(
+          editorWordWrap ? EditorView.lineWrapping : [],
+        ),
+      });
+    }, [editorWordWrap]);
 
     useEffect(() => {
       let cancelled = false;
@@ -222,12 +264,39 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         setQuery: (q: string) => {
           const view = cmRef.current?.view;
           if (!view) return;
+          searchQueryRef.current = q;
           view.dispatch({
             effects: setSearchQuery.of(
-              new SearchQuery({ search: q, caseSensitive: false }),
+              new SearchQuery({
+                search: q,
+                replace: replaceQueryRef.current,
+                caseSensitive: false,
+              }),
             ),
           });
           if (q) findNext(view);
+        },
+        setReplaceQuery: (replace: string) => {
+          replaceQueryRef.current = replace;
+          const view = cmRef.current?.view;
+          if (!view) return;
+          view.dispatch({
+            effects: setSearchQuery.of(
+              new SearchQuery({
+                search: searchQueryRef.current,
+                replace,
+                caseSensitive: false,
+              }),
+            ),
+          });
+        },
+        replaceNext: () => {
+          const view = cmRef.current?.view;
+          if (view) replaceNext(view);
+        },
+        replaceAll: () => {
+          const view = cmRef.current?.view;
+          if (view) replaceAll(view);
         },
         findNext: () => {
           const view = cmRef.current?.view;
@@ -274,7 +343,23 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           return { left, top, width: Math.max(1, right - left) };
         },
         getPath: () => path,
+        getCursorPosition: () => {
+          const view = cmRef.current?.view;
+          if (!view) return null;
+          const pos = view.state.selection.main.head;
+          const line = view.state.doc.lineAt(pos);
+          return { line: line.number, col: pos - line.from + 1 };
+        },
         reload: () => reloadRef.current(),
+        save: async () => {
+          try {
+            await saveRef.current();
+            onSavedRef.current?.();
+            return true;
+          } catch {
+            return false;
+          }
+        },
         undo: () => {
           const view = cmRef.current?.view;
           if (view) undo(view);
@@ -290,7 +375,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     if (doc.status === "loading") {
       return (
         <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-          Loading…
+          加载中…
         </div>
       );
     }

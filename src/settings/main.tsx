@@ -17,7 +17,7 @@ if (USE_CUSTOM_WINDOW_CONTROLS) {
 ReactDOM.createRoot(
   document.getElementById("settings-root") as HTMLElement,
 ).render(
-  <ThemeProvider>
+  <ThemeProvider surfaceLayer={false}>
     <SettingsApp />
   </ThemeProvider>,
 );

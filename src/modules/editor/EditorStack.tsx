@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { EditorTab, Tab } from "@/modules/tabs";
 import { useEffect, useRef } from "react";
-import { EditorPane, type EditorPaneHandle } from "./EditorPane";
+import { EditorPane, type EditorCursorPosition, type EditorPaneHandle } from "./EditorPane";
 
 type Props = {
   tabs: Tab[];
@@ -9,6 +9,7 @@ type Props = {
   onDirtyChange: (id: number, dirty: boolean) => void;
   registerHandle: (id: number, handle: EditorPaneHandle | null) => void;
   onCloseTab: (id: number) => void;
+  onCursorChange?: (id: number, pos: EditorCursorPosition | null) => void;
 };
 
 export function EditorStack({
@@ -17,6 +18,7 @@ export function EditorStack({
   onDirtyChange,
   registerHandle,
   onCloseTab,
+  onCursorChange,
 }: Props) {
   const editors = tabs.filter((t): t is EditorTab => t.kind === "editor");
 
@@ -68,6 +70,19 @@ export function EditorStack({
     return cb;
   };
 
+  const cursorCallbacks = useRef(
+    new Map<number, (pos: EditorCursorPosition | null) => void>(),
+  );
+
+  const getCursorCallback = (id: number) => {
+    let cb = cursorCallbacks.current.get(id);
+    if (!cb) {
+      cb = (pos) => onCursorChange?.(id, pos);
+      cursorCallbacks.current.set(id, cb);
+    }
+    return cb;
+  };
+
   // Drop callback entries for closed tabs to avoid unbounded growth.
   useEffect(() => {
     const live = new Set(editors.map((t) => t.id));
@@ -79,6 +94,9 @@ export function EditorStack({
     }
     for (const id of closeCallbacks.current.keys()) {
       if (!live.has(id)) closeCallbacks.current.delete(id);
+    }
+    for (const id of cursorCallbacks.current.keys()) {
+      if (!live.has(id)) cursorCallbacks.current.delete(id);
     }
   }, [editors]);
 
@@ -102,6 +120,7 @@ export function EditorStack({
                 path={t.path}
                 onDirtyChange={getDirtyCallback(t.id)}
                 onClose={getCloseCallback(t.id)}
+                onCursorChange={getCursorCallback(t.id)}
               />
             </div>
           </div>

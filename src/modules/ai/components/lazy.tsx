@@ -10,6 +10,10 @@ const AiMiniWindowInner = lazy(() =>
   import("./AiMiniWindow").then((m) => ({ default: m.AiMiniWindow })),
 );
 
+const AiAgentPanelInner = lazy(() =>
+  import("./AiAgentPanel").then((m) => ({ default: m.AiAgentPanel })),
+);
+
 const AiInputBarModule = () => import("./AiInputBar");
 
 const AiInputBarInner = lazy(() =>
@@ -40,10 +44,18 @@ export function AiMiniWindow() {
   );
 }
 
-export function AiInputBar() {
+export function AiAgentPanel() {
   return (
     <Suspense fallback={null}>
-      <AiInputBarInner />
+      <AiAgentPanelInner />
+    </Suspense>
+  );
+}
+
+export function AiInputBar(props: { embedded?: boolean }) {
+  return (
+    <Suspense fallback={null}>
+      <AiInputBarInner {...props} />
     </Suspense>
   );
 }

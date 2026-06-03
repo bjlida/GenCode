@@ -69,7 +69,7 @@ function EntryRowImpl(props: EntryRowProps) {
     if (tree.renaming) return;
     onSelectPath(path);
     if (isDir) tree.toggle(path);
-    else onOpenFile(path);
+    else onOpenFile(path, true);
   };
 
   return (

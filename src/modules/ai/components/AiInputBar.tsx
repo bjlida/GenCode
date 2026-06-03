@@ -72,7 +72,7 @@ function detectFileTrigger(
   return null;
 }
 
-export function AiInputBar() {
+export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
   const c = useComposer();
   const snippets = useSnippetsStore((s) => s.snippets);
   const workspaceRoot = useChatStore((s) => s.live.getWorkspaceRoot());
@@ -129,9 +129,7 @@ export function AiInputBar() {
         c.name.includes(q) ||
         c.label.includes(q) ||
         c.description.includes(q),
-    )
-      .slice(0, 20)
-      .map((command) => ({ kind: "command", command }));
+    ).map((command) => ({ kind: "command", command }));
     const snipItems: PickerItem[] = snippets
       .filter(
         (s) =>
@@ -236,7 +234,14 @@ export function AiInputBar() {
       : null;
 
   return (
-    <div className="shrink-0 border-t border-border/60 bg-card/40 px-3 py-2">
+    <div
+      className={cn(
+        "shrink-0",
+        embedded
+          ? "border-t border-border/50 bg-transparent px-2 py-2"
+          : "border-t border-border/60 bg-card/40 px-3 py-2",
+      )}
+    >
       <div
         className={cn(
           "flex flex-col gap-1.5 rounded-lg px-1 py-1",

@@ -352,7 +352,7 @@ export const useChatStore = create<StoreState>((set, get) => ({
   },
 
   mini: { open: false },
-  openMini: () => set({ mini: { open: true } }),
+  openMini: () => set({ mini: { open: true }, panelOpen: true }),
   closeMini: () => set({ mini: { open: false } }),
   toggleMini: () => set((s) => ({ mini: { open: !s.mini.open } })),
 

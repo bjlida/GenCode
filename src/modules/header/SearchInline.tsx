@@ -35,7 +35,7 @@ export type SearchTarget =
     }
   | null;
 
-export type SearchInlineHandle = { focus: () => void };
+export type SearchInlineHandle = { focus: () => void; openReplace: () => void };
 
 type Props = {
   target: SearchTarget;
@@ -46,6 +46,8 @@ type Props = {
 export const SearchInline = forwardRef<SearchInlineHandle, Props>(
   function SearchInline({ target, compact }, ref) {
     const [q, setQ] = useState("");
+    const [replaceQ, setReplaceQ] = useState("");
+    const [showReplace, setShowReplace] = useState(false);
     // In compact mode the field is hidden behind an icon until activated.
     // In normal mode the field is always present.
     const [openInCompact, setOpenInCompact] = useState(false);
@@ -88,7 +90,12 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
       if (inputRef.current) pendingFocusRef.current = false;
     }, [compact]);
 
-    useImperativeHandle(ref, () => ({ focus }), [focus]);
+    const openReplace = useCallback(() => {
+      setShowReplace(true);
+      focus();
+    }, [focus]);
+
+    useImperativeHandle(ref, () => ({ focus, openReplace }), [focus, openReplace]);
 
     const clearTarget = useCallback(() => {
       if (!target) return;
@@ -115,6 +122,9 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
         } else {
           target.addon.clearDecorations();
         }
+      } else if (target.kind === "editor") {
+        target.handle.setQuery(next);
+        if (showReplace) target.handle.setReplaceQuery(replaceQ);
       } else {
         target.handle.setQuery(next);
       }
@@ -137,9 +147,9 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
       <motion.div
         layout
         initial={false}
-        animate={{ width: expanded ? 192 : 28 }}
+        animate={{ width: expanded ? (showReplace && target?.kind === "editor" ? 320 : 192) : 28 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className="relative h-7 shrink-0"
+        className="relative shrink-0"
       >
         <AnimatePresence initial={false} mode="wait">
           {expanded ? (
@@ -149,8 +159,9 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.12 }}
-              className="absolute inset-0"
+              className="flex flex-col gap-1"
             >
+              <div className="relative h-7 w-full">
               <HugeiconsIcon
                 icon={Search01Icon}
                 size={13}
@@ -168,16 +179,24 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
                   applyIncremental(next);
                 }}
                 onBlur={() => {
-                  if (compact && !q) setOpenInCompact(false);
+                  if (compact && !q && !showReplace) setOpenInCompact(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    findDirection(!e.shiftKey);
+                    if (e.altKey && target?.kind === "editor") {
+                      target.handle.replaceAll();
+                    } else if (showReplace && target?.kind === "editor") {
+                      target.handle.replaceNext();
+                    } else {
+                      findDirection(!e.shiftKey);
+                    }
                   } else if (e.key === "Escape") {
                     e.preventDefault();
                     clearTarget();
                     setQ("");
+                    setReplaceQ("");
+                    setShowReplace(false);
                     if (compact) {
                       setOpenInCompact(false);
                     }
@@ -203,6 +222,26 @@ export const SearchInline = forwardRef<SearchInlineHandle, Props>(
                   />
                 </button>
               )}
+              </div>
+              {showReplace && target?.kind === "editor" ? (
+                <Input
+                  value={replaceQ}
+                  placeholder="替换为…"
+                  className="h-7 w-full bg-muted/80 text-[13px]! focus-visible:ring-0"
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setReplaceQ(next);
+                    target.handle.setReplaceQuery(next);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (e.altKey) target.handle.replaceAll();
+                      else target.handle.replaceNext();
+                    }
+                  }}
+                />
+              ) : null}
             </motion.div>
           ) : (
             <motion.div

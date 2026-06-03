@@ -14,6 +14,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AgentNotificationsBridge } from "@/modules/agents";
 import { firePendingReviewForSession } from "@/modules/agents/lib/review";
@@ -21,7 +27,7 @@ import { useManagedAgentsStore } from "@/modules/agents/store/managedAgentsStore
 import { Toaster } from "@/components/ui/sonner";
 import {
   AgentRunBridge,
-  AiInputBar,
+  AiAgentPanel,
   AiInputBarConnect,
   AiMiniWindow,
   getAllKeys,
@@ -41,6 +47,7 @@ import {
   GitDiffStack,
   NewEditorDialog,
   type EditorPaneHandle,
+  type EditorCursorPosition,
 } from "@/modules/editor";
 import {
   GitHistoryStack,
@@ -64,6 +71,7 @@ import {
 import { MarkdownStack } from "@/modules/markdown";
 import { PreviewStack, type PreviewPaneHandle } from "@/modules/preview";
 import { openSettingsWindow } from "@/modules/settings/openSettingsWindow";
+import { SettingsOverlay } from "@/modules/settings/SettingsOverlay";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { onKeysChanged, setThemeId as persistThemeId } from "@/modules/settings/store";
 import {
@@ -91,6 +99,7 @@ import {
   type TerminalPaneHandle,
 } from "@/modules/terminal";
 import { ThemeProvider } from "@/modules/theme";
+import { ClaudeCodeCommandPalette } from "@/modules/claude-code";
 import { listCustomThemes, saveCustomTheme } from "@/modules/theme/customThemes";
 import {
   isThemeFilePath,
@@ -112,9 +121,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { SearchAddon } from "@xterm/addon-search";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
+
+const AI_PANEL_SIZE_KEY = "gencode-ai-panel-size";
+const AI_PANEL_DEFAULT_SIZE = 30;
+
+function readAiPanelSize(): number {
+  if (typeof window === "undefined") return AI_PANEL_DEFAULT_SIZE;
+  const raw = localStorage.getItem(AI_PANEL_SIZE_KEY);
+  const n = raw ? Number(raw) : AI_PANEL_DEFAULT_SIZE;
+  return Number.isFinite(n) ? Math.min(60, Math.max(15, n)) : AI_PANEL_DEFAULT_SIZE;
+}
 
 function dirname(path: string | null): string | null {
   if (!path) return null;
@@ -217,6 +236,7 @@ export default function App() {
 
   const sidebarRef = useRef<PanelImperativeHandle | null>(null);
   const sidebarWidthRef = useRef(readSidebarWidth());
+  const aiPanelSizeRef = useRef(readAiPanelSize());
   const sidebarWidthWriteTimerRef = useRef(0);
   const [sidebarView, setSidebarViewState] = useState<SidebarViewId>(readSidebarView);
   const persistSidebarView = useCallback((view: SidebarViewId) => {
@@ -317,6 +337,9 @@ export default function App() {
 
   const [home, setHome] = useState<string | null>(null);
   const [pendingCloseTab, setPendingCloseTab] = useState<number | null>(null);
+  const [editorCursor, setEditorCursor] = useState<EditorCursorPosition | null>(
+    null,
+  );
   const workspaceEnv = useWorkspaceEnvStore((s) => s.env);
   const setWorkspaceEnv = useWorkspaceEnvStore((s) => s.setEnv);
   const [launchCwd, setLaunchCwd] = useState<string | null>(null);
@@ -395,6 +418,7 @@ export default function App() {
   }, []);
 
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [ccCommandsOpen, setCcCommandsOpen] = useState(false);
   const [newEditorOpen, setNewEditorOpen] = useState(false);
   const miniOpen = useChatStore((s) => s.mini.open);
   const activeSessionId = useChatStore((s) => s.activeSessionId);
@@ -631,7 +655,14 @@ export default function App() {
       activeLeafId !== null ? (searchAddons.current.get(activeLeafId) ?? null) : null,
     );
     setActiveEditorHandle(editorRefs.current.get(activeId) ?? null);
-  }, [activeId, activeLeafId]);
+    if (activeTab?.kind === "editor") {
+      const handle = editorRefs.current.get(activeId);
+      setEditorCursor(handle?.getCursorPosition() ?? null);
+      requestAnimationFrame(() => handle?.focus());
+    } else {
+      setEditorCursor(null);
+    }
+  }, [activeId, activeLeafId, activeTab?.kind]);
 
   const handleSearchReady = useCallback(
     (leafId: number, addon: SearchAddon) => {
@@ -690,6 +721,14 @@ export default function App() {
       disposeTab(pendingCloseTab);
       setPendingCloseTab(null);
     }
+  }, [pendingCloseTab, disposeTab]);
+
+  const saveAndClose = useCallback(async () => {
+    if (pendingCloseTab === null) return;
+    const ok = await editorRefs.current.get(pendingCloseTab)?.save();
+    if (!ok) return;
+    disposeTab(pendingCloseTab);
+    setPendingCloseTab(null);
   }, [pendingCloseTab, disposeTab]);
 
   const cancelClose = useCallback(() => {
@@ -1061,6 +1100,7 @@ export default function App() {
       "ai.toggle": togglePanelAndFocus,
       "ai.askSelection": askFromSelection,
       "shortcuts.open": () => setShortcutsOpen((v) => !v),
+      "claudeCode.commands": () => setCcCommandsOpen(true),
       "settings.open": () => void openSettingsWindow(),
       "sidebar.toggle": toggleSidebar,
       "explorer.focus": toggleExplorerFocus,
@@ -1069,6 +1109,22 @@ export default function App() {
       "view.zoomReset": zoomReset,
       "editor.undo": () => editorRefs.current.get(activeId)?.undo(),
       "editor.redo": () => editorRefs.current.get(activeId)?.redo(),
+      "editor.replace": () => searchInlineRef.current?.openReplace(),
+      "editor.format": () => {
+        const t = tabs.find((x) => x.id === activeId);
+        if (t?.kind !== "editor") return;
+        const path = t.path;
+        const ext = path.split(".").pop()?.toLowerCase() ?? "";
+        const cmd =
+          ext === "rs"
+            ? `cargo fmt -- "${path}"`
+            : `npx prettier --write "${path.replace(/\\/g, "/")}"`;
+        void invoke("shell_run_command", {
+          command: cmd,
+          cwd: explorerRoot ?? launchCwd ?? home,
+          workspace: currentWorkspaceEnv(),
+        }).then(() => editorRefs.current.get(activeId)?.reload());
+      },
     }),
     [
       activeId,
@@ -1096,6 +1152,12 @@ export default function App() {
       if (id === "editor.undo" || id === "editor.redo") {
         return activeTab?.kind !== "editor";
       }
+      if (
+        id === "editor.replace" ||
+        id === "editor.format"
+      ) {
+        return activeTab?.kind !== "editor";
+      }
       if (id === "ai.askSelection") {
         const target =
           (e.target as HTMLElement | null) ?? document.activeElement;
@@ -1119,6 +1181,13 @@ export default function App() {
       else terminalRefs.current.delete(leafId);
     },
     [],
+  );
+
+  const handleEditorCursor = useCallback(
+    (id: number, pos: EditorCursorPosition | null) => {
+      if (id === activeId) setEditorCursor(pos);
+    },
+    [activeId],
   );
 
   const registerEditorHandle = useCallback(
@@ -1345,6 +1414,7 @@ export default function App() {
           registerHandle={registerEditorHandle}
           onDirtyChange={handleEditorDirty}
           onCloseTab={disposeTab}
+          onCursorChange={handleEditorCursor}
         />
       </div>
       <div
@@ -1487,33 +1557,52 @@ export default function App() {
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="workspace" defaultSize="78%" minSize="30%">
-                <div className="flex h-full min-h-0 flex-col">
-                  <div className="relative min-h-0 flex-1">
-                    {workspaceSurface}
-                  </div>
-
-                  {keysLoaded ? (
-                    <motion.div
-                      data-ai-input-bar
-                      initial={false}
-                      animate={{
-                        height: panelOpen ? "auto" : 0,
-                        opacity: panelOpen ? 1 : 0,
-                      }}
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden"
-                      aria-hidden={!panelOpen}
-                    >
-                      {hasComposer ? (
-                        <AiInputBar />
-                      ) : (
-                        <AiInputBarConnect
-                          onAdd={() => void openSettingsWindow("models")}
-                        />
-                      )}
-                    </motion.div>
+                <ResizablePanelGroup
+                  orientation="vertical"
+                  className="min-h-0 flex-1"
+                >
+                  <ResizablePanel
+                    id="workspace-main"
+                    defaultSize={panelOpen && keysLoaded ? `${100 - aiPanelSizeRef.current}%` : "100%"}
+                    minSize="30%"
+                  >
+                    <div className="relative h-full min-h-0">
+                      {workspaceSurface}
+                    </div>
+                  </ResizablePanel>
+                  {panelOpen && keysLoaded ? (
+                    <>
+                      <ResizableHandle withHandle />
+                      <ResizablePanel
+                        id="ai-agent"
+                        defaultSize={`${aiPanelSizeRef.current}%`}
+                        minSize="15%"
+                        maxSize="60%"
+                        onResize={(size) => {
+                          if (size.asPercentage > 0) {
+                            aiPanelSizeRef.current = Math.round(size.asPercentage);
+                            try {
+                              localStorage.setItem(
+                                AI_PANEL_SIZE_KEY,
+                                String(aiPanelSizeRef.current),
+                              );
+                            } catch {
+                              /* ignore */
+                            }
+                          }
+                        }}
+                      >
+                        {hasComposer ? (
+                          <AiAgentPanel />
+                        ) : (
+                          <AiInputBarConnect
+                            onAdd={() => void openSettingsWindow("models")}
+                          />
+                        )}
+                      </ResizablePanel>
+                    </>
                   ) : null}
-                </div>
+                </ResizablePanelGroup>
               </ResizablePanel>
             </ResizablePanelGroup>
           </main>
@@ -1521,6 +1610,7 @@ export default function App() {
           <StatusBar
             cwd={activeCwd}
             filePath={activeFilePath}
+            editorCursor={isEditorTab ? editorCursor : null}
             home={home}
             onCd={sendCd}
             onWorkspaceChange={switchWorkspace}
@@ -1561,10 +1651,21 @@ export default function App() {
             ) : null}
           </AnimatePresence>
 
+          <SettingsOverlay />
+
           <ShortcutsDialog
             open={shortcutsOpen}
             onOpenChange={setShortcutsOpen}
           />
+
+          <Dialog open={ccCommandsOpen} onOpenChange={setCcCommandsOpen}>
+            <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Claude Code 命令参考</DialogTitle>
+              </DialogHeader>
+              <ClaudeCodeCommandPalette onClose={() => setCcCommandsOpen(false)} />
+            </DialogContent>
+          </Dialog>
 
           <NewEditorDialog
             open={newEditorOpen}
@@ -1590,12 +1691,18 @@ export default function App() {
                     : "此文件有未保存的更改。确定关闭吗？"}
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
+              <AlertDialogFooter className="gap-2 sm:gap-0">
                 <AlertDialogCancel onClick={cancelClose}>
                   取消
                 </AlertDialogCancel>
-                <AlertDialogAction onClick={confirmClose}>
-                  强制关闭
+                <AlertDialogAction
+                  onClick={confirmClose}
+                  className="bg-muted text-foreground hover:bg-muted/80"
+                >
+                  不保存
+                </AlertDialogAction>
+                <AlertDialogAction onClick={() => void saveAndClose()}>
+                  保存
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

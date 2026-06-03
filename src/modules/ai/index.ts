@@ -1,5 +1,6 @@
 export {
   AgentRunBridge,
+  AiAgentPanel,
   AiInputBar,
   AiInputBarConnect,
   AiMiniWindow,

@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ClaudeCodeStatus } from "@/modules/claude-code/components/ClaudeCodeStatus";
+import type { EditorCursorPosition } from "@/modules/editor/EditorPane";
 import { IncognitoIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { CwdBreadcrumb } from "./CwdBreadcrumb";
@@ -19,6 +20,7 @@ import type { WorkspaceEnv } from "@/modules/workspace";
 type Props = {
   cwd: string | null;
   filePath?: string | null;
+  editorCursor?: EditorCursorPosition | null;
   home: string | null;
   onCd: (path: string) => void;
   onWorkspaceChange: (env: WorkspaceEnv) => void;
@@ -31,6 +33,7 @@ type Props = {
 export function StatusBar({
   cwd,
   filePath,
+  editorCursor,
   home,
   onCd,
   onWorkspaceChange,
@@ -61,6 +64,11 @@ export function StatusBar({
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        {editorCursor ? (
+          <span className="hidden tabular-nums text-muted-foreground sm:inline">
+            行 {editorCursor.line}，列 {editorCursor.col}
+          </span>
+        ) : null}
         <ClaudeCodeStatus />
         <AgentStatusPill onClick={onOpenMini} />
         {panelOpen && hasComposer ? (
