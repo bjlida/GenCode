@@ -23,6 +23,10 @@ jobs:
           - platform: ubuntu-22.04
             args: ""
             rust-target: ""
+          - platform: windows-latest
+            # WiX/MSI light.exe fails on GitHub runners; NSIS matches custom installer UI.
+            args: --bundles nsis
+            rust-target: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -74,4 +78,24 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Build portable (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $exe = "src-tauri/target/release/gencode.exe"
+          if (Test-Path $exe) {
+            $dest = "GenCode_${{ github.ref_name }}_x64-portable.zip"
+            Compress-Archive -Path $exe -DestinationPath $dest
+            Write-Output "portable_zip=$dest" >> $env:GITHUB_ENV
+            Write-Output "portable=yes" >> $env:GITHUB_ENV
+          }
+
+      - name: Upload portable to release
+        if: env.portable == 'yes'
+        shell: bash
+        run: |
+          gh release upload "${{ github.ref_name }}" "${{ env.portable_zip }}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

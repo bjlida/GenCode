@@ -140,7 +140,7 @@ cp .env.example .env
 |---|---|---|
 | macOS | Apple Silicon (aarch64) + Intel (x86_64) | `.dmg` |
 | Linux | x86_64 | `.deb`、`.AppImage`、`.rpm` |
-| Windows | x86_64 | `.msi`、`.exe` (NSIS) |
+| Windows | x86_64 | `.exe` (NSIS 安装包) + portable zip |
 
 发布为草稿 (draft)，确认无误后在 GitHub 手动发布。
 
