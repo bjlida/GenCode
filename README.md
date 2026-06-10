@@ -9,20 +9,36 @@
     <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="platform" />
     <img src="https://img.shields.io/badge/bundle-~8MB-blue" alt="bundle size" />
   </p>
+
+  <img src="docs/灵码深色主题.png" width="840" alt="GenCode 深色主题界面" />
 </div>
 
 ---
 
 ## 关于本项目
 
-> 本项目基于 [Crynta/Terax](https://github.com/Crynta/Terax) (Apache 2.0) 二次开发。
+> 本项目基于 [Crynta/Terax-ai](https://github.com/crynta/terax-ai/) (Apache 2.0) 二次开发。
 
 GenCode (灵码ADE) 是一款 **AI 原生终端模拟器 (ADE — Agentic Development Environment)**，定位 terminal-first 的 AI 编程终端，区别于 VS Code 等重 IDE，聚焦终端交互 + AI 辅助编码一体化体验。全中文界面，开箱即用。核心二进制约 7-8 MB，无遥测，无账户系统。
 
 - **技术栈**: Tauri 2 + Rust (`portable-pty`) + React 19 + TypeScript + xterm.js (WebGL) + CodeMirror 6 + Vercel AI SDK v6 + Tailwind v4
 - **许可证**: [Apache License 2.0](LICENSE)
 - **功能文档 / Docs**: [resources/](resources/)（[English](resources/en/user-guide.md) · [简体中文](resources/zh-CN/user-guide.md)）
-- **路线图**: [ROADMAP.md](ROADMAP.md) · **开发指南**: [CLAUDE.md](CLAUDE.md) · **安全报告**: [SECURITY.md](SECURITY.md)
+- **安全报告**: [SECURITY.md](SECURITY.md)
+
+## 界面预览
+
+| 浅色主题 | 拆分终端 |
+|---|---|
+| ![浅色主题](docs/灵码浅色主题.png) | ![拆分终端](docs/拆分终端功能.png) |
+
+| 设置页面 | 内置 Agent 预设 |
+|---|---|
+| ![设置页面](docs/设置页面.png) | ![内置 Agent 预设](docs/内置agent.png) |
+
+| 多模型支持 | 11 种主题风格 |
+|---|---|
+| ![多模型支持](docs/支持自定义多种模型.png) | ![11 种主题风格](docs/11种主题风格.png) |
 
 ## 界面布局
 
@@ -54,13 +70,13 @@ Cursor 风格三栏工作区：
 - **BYOK 多模型**: OpenAI / Anthropic / Google / xAI / Cerebras / Groq / DeepSeek / Mistral / OpenRouter / 通义千问 / 文心一言 / 讯飞星火 / 智谱 GLM / Moonshot + OpenAI-compatible 自定义接口
 - **本地模型**: LM Studio / MLX / Ollama
 - **技能工作流**: 计划模式、子代理、项目记忆 (GENCODE.md)、工具审批门控
-- **15 内置预设技能**: 编码 / 架构 / 审查 / 安全 / 设计 / 测试 / 调试 / 重构 / 文档 / 性能 / 运维 / 构建 / 数据库 / API开发 / CLI工具（可在 **设置 → 技能** 切换）
-- **全中文界面**: UI 文案、工具描述、错误提示、安全策略均已汉化
+- **15 内置预设技能**: 编码 / 架构 / 审查 / 安全 / 设计 / 测试 / 调试 / 重构 / 文档 / 性能 / 运维 / 构建 / 数据库 / API开发 / CLI工具（可在 **设置 → agent** 切换）
+- **全中文界面**: UI 文案、工具描述、错误提示、安全策略均为中文
 
 ### 内嵌 Claude Code
 - **状态栏 CC 图标**: 一键新建 Claude 终端标签并运行 `claude`（未安装时跳转设置）
 - 一键安装 Node.js + Claude Code CLI (国内镜像自动切换)
-- 在集成终端运行 `claude` 即可使用；GenCode 自动配置中文 locale（`language: chinese` + `zh_CN.UTF-8`）
+- 在集成终端运行 `claude` 即可使用；GenCode 在每次启动 claude 前重新合并中文 locale（`language: chinese` + `zh_CN.UTF-8`）以防被外部工具覆盖
 - 托管 PTY 会话中运行完整 Claude Code（AI 工具 `spawnManagedAgent` 亦可触发）
 - MCP 服务器可视化管理（**设置 → Claude Code**）
 - Claude 扩展技能搜索与安装 (GitHub / GitLab / Gitee)（**设置 → Claude 技能**）
@@ -75,7 +91,7 @@ Cursor 风格三栏工作区：
 - Vim 模式、自动换行、查找替换 (`Ctrl+H`)、格式化 (`Ctrl+Shift+Alt+F`)
 - **编辑器右键菜单**：撤销/重做、剪切/复制/粘贴、**格式化代码**（Rust → `cargo fmt`，其他 → Prettier；先保存再格式化）
 - 状态栏行列号、关闭未保存提示（保存 / 不保存 / 取消）
-- 10 种内置编辑器主题
+- 11 种内置编辑器主题；**GenCode Dark**（终端配色风格，暗色默认）
 
 ### 设置
 - **主窗口内嵌设置** (`Ctrl+,`): 左侧导航 + 实色背景 overlay，Esc 关闭；最大化窗口无空白区
@@ -113,17 +129,15 @@ Cursor 风格三栏工作区：
 |---|---|
 | 布局 | Cursor 三栏：侧边栏 / 工作区 / 右侧 AI 面板；顶栏品牌 Logo 替换文字 |
 | 设置 | 内嵌 overlay（含最大化修复）；Agent 页重构（片段 + 自定义指令） |
-| Claude Code | 状态栏 CC 图标一键新建终端；中文 locale；与 AI 助手入口分离 |
+| Claude Code | 状态栏 CC 图标一键新建终端；每次启动前重新合并中文 locale（防外部覆盖）；与 AI 助手入口分离 |
 | AI Composer | 附件菜单（文件 / 粘贴截图 / 截屏）；圆角输入框；移除空状态占位 |
 | 资源管理器 | 首次启动空目录；记住上次项目路径 |
 | 源码管理 | 与 Explorer 项目根对齐，修复 Git 不加载 |
-| 编辑器 | Markdown 预览/源码切换；选区提问 (`Ctrl+L`)；右键菜单 **格式化代码** |
+| 编辑器 | 新增 GenCode Dark 编辑器主题（终端配色风格，暗色默认）；修复深色主题下代码内容不可见；Markdown 预览/源码切换；选区提问 (`Ctrl+L`)；右键菜单 **格式化代码** |
 | 终端 | 修复 WebGL 重绘导致仅显示光标；OSC cwd 重挂载修复 |
 | 通知 | 通知铃铛文案中文化；Claude Code 通知一键启用 |
 | Windows 发布 | CI 使用 NSIS + 便携 zip；自定义安装界面 BMP |
 | UI | 顶栏加高、图标放大、侧边栏字号、拆分菜单与通知 footer 布局修复 |
-
-详情见 [ROADMAP.md](ROADMAP.md) Shipped 章节。
 
 ## 安装
 
@@ -209,8 +223,8 @@ cp .env.example .env
 
 ```bash
 # 打 tag 并推送即可触发自动发布
-git tag v0.8.0
-git push origin v0.8.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ## 自动升级
@@ -230,7 +244,6 @@ GenCode 内置 Tauri updater 自动更新机制：
 ```bash
 pnpm install
 pnpm tauri dev          # 开发模式 (Tauri 窗口 + 前端 HMR)
-pnpm dev                # 仅 Vite → http://localhost:1420
 pnpm tauri build        # 生产构建
 ```
 
@@ -275,7 +288,7 @@ pnpm tauri dev
 | 设置 | Header 齿轮 → 内嵌 overlay（含最大化）；Agent / Claude Code / Claude 技能页可打开 |
 | 资源管理器 | 首次启动为空；打开含 `.git` 的项目后，源码管理应显示仓库 |
 | 编辑器 | 打开 `.md` 切换预览/源码；右键 **格式化代码**；`Ctrl+S` 保存，状态栏看行列号 |
-| 终端 | 新标签应显示 Shell 提示符与欢迎信息（非仅光标） |
+| 终端 | 新标签应显示 Shell 提示符与欢迎信息 |
 | Claude Code | 状态栏 CC 图标 → 新建 `claude` 终端；手动 `claude` 与 `Ctrl+Shift+?` 命令参考 |
 | Composer | 附件菜单：附加文件、粘贴截图、截取屏幕（需视觉模型） |
 | 安装界面 | 见下方「NSIS 安装界面资源」 |
@@ -340,12 +353,12 @@ pnpm tauri build --no-bundle
 │       ├── shell/          # Shell 执行
 │       ├── net/            # AI HTTP 代理 (SSRF 防护)
 │       └── ...             # secrets/workspace/agent
-└── CLAUDE.md               # Claude Code 开发指导
+└── docs/                   # 软件界面截图 (README 界面预览)
 ```
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。请先阅读 [ROADMAP.md](ROADMAP.md) 了解方向与范围，在 [GitHub Issues](https://github.com/bjlida/GenCode/issues) 讨论后再动手。
+欢迎提交 Issue 和 Pull Request。请先在 [GitHub Issues](https://github.com/bjlida/GenCode/issues) 讨论方向与范围后再动手。
 
 ## 开源协议
 

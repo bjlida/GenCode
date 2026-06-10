@@ -1,4 +1,5 @@
 import { resolveMonoFontFamily } from "@/lib/fonts";
+import { IS_WINDOWS } from "@/lib/platform";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import { buildTerminalTheme } from "@/styles/terminalTheme";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -130,6 +131,8 @@ function createSlot(): Slot {
   host.setAttribute("data-gencode-slot", String(slots.length));
   getRecycler().appendChild(host);
   term.open(host);
+  // WebGL attaches in bindSlot after the host is in the visible pane — attaching
+  // here (off-screen recycler) caused blank glyphs on Windows WebView2 releases.
 
   const slot: Slot = {
     id: slots.length,
@@ -152,8 +155,6 @@ function createSlot(): Slot {
     lastH: 0,
     lastUsedAt: 0,
   };
-
-  attachWebgl(slot);
 
   term.attachCustomKeyEventHandler((event) => {
     const leafId = slot.currentLeafId;
@@ -252,6 +253,8 @@ export type AcquireParams = {
   // and kicks SIGWINCH so the TUI repaints from scratch.
   altScreen: boolean;
   drainRing: (write: (bytes: Uint8Array) => void) => void;
+  /** Bytes queued before the xterm slot was bound (PTY started early). */
+  pendingRingBytes: number;
   shellExited: boolean;
   searchQuery: string | null;
   cols: number;
@@ -281,30 +284,48 @@ export function acquireSlot(params: AcquireParams): Slot {
   return pick.slot;
 }
 
+function refreshSlotGlyphs(slot: Slot): void {
+  if (slot.term.rows <= 0) return;
+  try {
+    slot.term.refresh(0, slot.term.rows - 1);
+  } catch {}
+}
+
 function resetWebglAfterHostMove(slot: Slot): void {
   if (!usePreferencesStore.getState().terminalWebglEnabled) return;
   if (slot.webglAddon) disposeSlotWebgl(slot);
   attachWebgl(slot);
+  refreshSlotGlyphs(slot);
+}
+
+function ensureSlotWebgl(slot: Slot): void {
+  if (!usePreferencesStore.getState().terminalWebglEnabled) return;
+  if (!slot.webglAddon) attachWebgl(slot);
 }
 
 function bindSlot(slot: Slot, p: AcquireParams): void {
-  const stale =
-    !slot.webglAddon || performance.now() - slot.lastUsedAt > SLOT_STALE_MS;
   slot.currentLeafId = p.leafId;
   slot.lastUsedAt = performance.now();
 
   cancelPendingUnhide(slot);
   slot.host.style.visibility = "hidden";
 
-  let hostMoved = false;
-  if (slot.host.parentNode !== p.container) {
+  const hostMoved = slot.host.parentNode !== p.container;
+  if (hostMoved) {
     p.container.appendChild(slot.host);
-    hostMoved = true;
   }
 
+  // WebGL must not paint while the host is hidden — WebView2 keeps a blank atlas.
+  if (slot.webglAddon) disposeSlotWebgl(slot);
+
   slot.term.options.disableStdin = p.shellExited;
-  slot.term.clear();
-  slot.term.reset();
+  // Avoid wiping a recycled slot when PTY output is already buffered — clear+reset
+  // here was leaving only a cursor after focus/tab churn (issue: blank prompt).
+  const didClearReset = !p.snapshot && p.pendingRingBytes === 0;
+  if (didClearReset) {
+    slot.term.clear();
+    slot.term.reset();
+  }
 
   if (
     p.cols > 0 &&
@@ -322,9 +343,6 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
     }
   }
   if (p.altScreen) {
-    // Discard the dormant ring. TUI output is incremental cursor-positioned
-    // updates that can't be replayed coherently on top of a stale snapshot
-    // — see the SIGWINCH kick below, which makes the TUI redraw from scratch.
     p.drainRing(() => {});
   } else {
     p.drainRing((bytes) => slot.term.write(bytes));
@@ -341,14 +359,44 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
   slot.oscDisposers = p.registerOsc(slot.term);
 
   setupResizeObserver(slot, p);
-  slot.fitAddon.fit();
-  slot.lastCols = slot.term.cols;
-  slot.lastRows = slot.term.rows;
+  scheduleUnhide(slot, p, hostMoved);
+}
+
+function finalizeSlotAfterShow(
+  slot: Slot,
+  p: AcquireParams,
+  hostMoved: boolean,
+): void {
+  try {
+    slot.fitAddon.fit();
+  } catch (e) {
+    console.warn("[gencode] fit failed:", e);
+  }
   slot.lastW = p.container.clientWidth;
   slot.lastH = p.container.clientHeight;
-  if (slot.lastCols !== p.cols || slot.lastRows !== p.rows) {
-    // resizePty updates session.cols/rows + pty backend; no separate scope call.
-    adapter?.resolveLeaf(p.leafId)?.resizePty(slot.lastCols, slot.lastRows);
+  slot.lastCols = slot.term.cols;
+  slot.lastRows = slot.term.rows;
+
+  if (hostMoved) {
+    resetWebglAfterHostMove(slot);
+  } else {
+    ensureSlotWebgl(slot);
+  }
+  refreshSlotGlyphs(slot);
+
+  if (!p.altScreen) {
+    p.drainRing((bytes) => slot.term.write(bytes));
+  }
+  refreshSlotGlyphs(slot);
+
+  const bridge = adapter?.resolveLeaf(p.leafId);
+  if (slot.term.cols > 0 && slot.term.rows > 0 && bridge) {
+    if (slot.term.cols !== p.cols || slot.term.rows !== p.rows) {
+      bridge.resizePty(slot.term.cols, slot.term.rows);
+    }
+    if (!p.shellExited && !p.altScreen) {
+      bridge.kickPty(slot.term.cols, slot.term.rows);
+    }
   }
 
   if (p.searchQuery) {
@@ -360,28 +408,23 @@ function bindSlot(slot: Slot, p: AcquireParams): void {
   applyCursorBlinkOnSlot(slot, adapter?.isLeafFocused(p.leafId) ?? false);
 
   if (p.altScreen && !p.shellExited) {
-    adapter?.resolveLeaf(p.leafId)?.kickPty(slot.term.cols, slot.term.rows);
+    bridge?.kickPty(slot.term.cols, slot.term.rows);
   }
-
-  if (hostMoved) resetWebglAfterHostMove(slot);
-
-  scheduleUnhide(slot, stale);
 
   p.onSearchReady(slot.searchAddon);
 }
 
-function scheduleUnhide(slot: Slot, stale: boolean): void {
+function scheduleUnhide(
+  slot: Slot,
+  p: AcquireParams,
+  hostMoved: boolean,
+): void {
   slot.unhideRaf = requestAnimationFrame(() => {
     slot.unhideRaf = requestAnimationFrame(() => {
       slot.unhideRaf = null;
       slot.host.style.visibility = "";
-      if (stale && !slot.webglAddon) attachWebgl(slot);
-      // WebGL glyphs often stay blank after reparenting from the off-screen
-      // recycler (or after zoom-exempt layout); refresh every unhide, not only
-      // when the slot is "stale".
-      try {
-        slot.term.refresh(0, slot.term.rows - 1);
-      } catch {}
+      finalizeSlotAfterShow(slot, p, hostMoved);
+      refreshSlotGlyphs(slot);
       const leafId = slot.currentLeafId;
       if (leafId !== null && adapter?.isLeafFocused(leafId)) {
         slot.term.focus();
@@ -399,10 +442,10 @@ function cancelPendingUnhide(slot: Slot): void {
 
 function rewireSlot(slot: Slot, p: AcquireParams): void {
   slot.lastUsedAt = performance.now();
-  let hostMoved = false;
-  if (slot.host.parentNode !== p.container) {
+  const hostMoved = slot.host.parentNode !== p.container;
+  if (hostMoved) {
+    if (slot.webglAddon) disposeSlotWebgl(slot);
     p.container.appendChild(slot.host);
-    hostMoved = true;
   }
   if (p.altScreen) {
     p.drainRing(() => {});
@@ -410,21 +453,11 @@ function rewireSlot(slot: Slot, p: AcquireParams): void {
     p.drainRing((bytes) => slot.term.write(bytes));
   }
   setupResizeObserver(slot, p);
-  slot.fitAddon.fit();
-  slot.lastW = p.container.clientWidth;
-  slot.lastH = p.container.clientHeight;
-  if (slot.term.cols !== p.cols || slot.term.rows !== p.rows) {
-    adapter?.resolveLeaf(p.leafId)?.resizePty(slot.term.cols, slot.term.rows);
-  }
-  slot.lastCols = slot.term.cols;
-  slot.lastRows = slot.term.rows;
   if (hostMoved) {
-    resetWebglAfterHostMove(slot);
-    try {
-      slot.term.refresh(0, slot.term.rows - 1);
-    } catch {}
+    scheduleUnhide(slot, p, true);
+  } else {
+    finalizeSlotAfterShow(slot, p, false);
   }
-  p.onSearchReady(slot.searchAddon);
 }
 
 function setupResizeObserver(slot: Slot, p: AcquireParams): void {
@@ -524,11 +557,10 @@ function detachSlotFromLeaf(slot: Slot): void {
 }
 
 const WEBGL_RECOVERY_DELAY_MS = 250;
-// Below this a re-shown slot is fresh enough to trust; above it, repaint on
-// unhide to defeat silent GPU/context staleness.
-const SLOT_STALE_MS = 10_000;
 
 function attachWebgl(slot: Slot): void {
+  // WebView2 on Windows keeps a blank glyph atlas with WebGL after reparent/fit.
+  if (IS_WINDOWS) return;
   if (slot.webglAddon || !slot.term.element) return;
   if (!usePreferencesStore.getState().terminalWebglEnabled) return;
   const elem = slot.term.element;
@@ -566,6 +598,8 @@ function attachWebgl(slot: Slot): void {
     for (const c of after) if (!before.has(c)) added.push(c);
     slot.webglAddon = webgl;
     slot.webglCanvases = added;
+    refreshSlotGlyphs(slot);
+    void document.fonts.ready.then(() => refreshSlotGlyphs(slot));
   } catch (e) {
     console.warn("[gencode-webgl] unavailable:", e);
   }
@@ -625,8 +659,13 @@ function releaseCanvasContext(canvas: HTMLCanvasElement): void {
 
 export function applyWebglPreference(enabled: boolean): void {
   for (const slot of slots) {
-    if (enabled && !slot.webglAddon) attachWebgl(slot);
-    else if (!enabled && slot.webglAddon) disposeSlotWebgl(slot);
+    if (enabled && !slot.webglAddon) {
+      attachWebgl(slot);
+      refreshSlotGlyphs(slot);
+    } else if (!enabled && slot.webglAddon) {
+      disposeSlotWebgl(slot);
+      refreshSlotGlyphs(slot);
+    }
   }
 }
 

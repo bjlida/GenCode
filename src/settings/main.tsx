@@ -6,6 +6,8 @@ import "../styles/globals.css";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import ReactDOM from "react-dom/client";
+import { Toaster } from "@/components/ui/sonner";
+import { UpdaterProvider } from "@/modules/updater";
 import { ThemeProvider } from "@/modules/theme";
 import { USE_CUSTOM_WINDOW_CONTROLS } from "@/lib/platform";
 import { SettingsApp } from "./SettingsApp";
@@ -18,7 +20,10 @@ ReactDOM.createRoot(
   document.getElementById("settings-root") as HTMLElement,
 ).render(
   <ThemeProvider surfaceLayer={false}>
-    <SettingsApp />
+    <UpdaterProvider autoCheck={false}>
+      <SettingsApp />
+      <Toaster position="bottom-right" />
+    </UpdaterProvider>
   </ThemeProvider>,
 );
 

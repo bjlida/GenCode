@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { SectionHeader } from "../components/SectionHeader";
 
 interface SecurityPolicy {
@@ -21,13 +22,24 @@ const PRESET_LABELS: Record<string, string> = {
   strict: "Strict",
 };
 
+const PRESET_NAME_ZH: Record<string, string> = {
+  permissive: "宽松",
+  standard: "标准",
+  strict: "严格",
+};
+
 export function SecurityPolicyEditor() {
   const [policy, setPolicy] = useState<SecurityPolicy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void loadPolicy();
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    };
   }, []);
 
   const loadPolicy = async () => {
@@ -48,20 +60,32 @@ export function SecurityPolicyEditor() {
         setPolicy(p);
         await invoke("sandbox_update_policy", { policy: p });
         await loadPolicy();
+        setSaved(true);
+        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
+        toast.success("已应用预设并保存");
       }
     } catch (e) {
       setError(String(e));
+      toast.error("预设应用失败", { description: String(e) });
     }
   };
 
   const handleSave = async () => {
     if (!policy) return;
     setSaving(true);
+    setSaved(false);
     try {
       await invoke("sandbox_update_policy", { policy });
+      await loadPolicy();
       setError(null);
+      setSaved(true);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
+      toast.success("安全策略已保存");
     } catch (e) {
       setError(String(e));
+      toast.error("保存失败", { description: String(e) });
     } finally {
       setSaving(false);
     }
@@ -71,8 +95,11 @@ export function SecurityPolicyEditor() {
     try {
       await invoke("sandbox_reset_policy");
       await loadPolicy();
+      setSaved(false);
+      toast.message("已恢复默认安全策略");
     } catch (e) {
       setError(String(e));
+      toast.error("恢复默认失败", { description: String(e) });
     }
   };
 
@@ -82,7 +109,7 @@ export function SecurityPolicyEditor() {
     const next = current.includes(category)
       ? current.filter((c) => c !== category)
       : [...current, category];
-    setPolicy({ ...policy, require_approval_for: next });
+    setPolicy({ ...policy, require_approval_for: next, preset_name: null });
   };
 
   if (!policy) {
@@ -113,7 +140,6 @@ export function SecurityPolicyEditor() {
         <p className="font-mono text-[12px] text-destructive/80 break-all">{error}</p>
       )}
 
-      {/* Preset Selector */}
       <section className="flex flex-col gap-3">
         <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">
           预设
@@ -136,23 +162,25 @@ export function SecurityPolicyEditor() {
         </div>
       </section>
 
-      {/* Workspace Root */}
       <section className="flex flex-col gap-2">
         <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">
-          工作区根目录        </h3>
+          工作区根目录
+        </h3>
         <input
           type="text"
           value={policy.workspace_root}
-          onChange={(e) => setPolicy({ ...policy, workspace_root: e.target.value })}
+          onChange={(e) =>
+            setPolicy({ ...policy, workspace_root: e.target.value, preset_name: null })
+          }
           className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
           placeholder="/home/user/project"
         />
       </section>
 
-      {/* Approval Categories */}
       <section className="flex flex-col gap-2">
         <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">
-          需要审批的操作        </h3>
+          需要审批的操作
+        </h3>
         <div className="flex flex-col gap-1.5">
           {approvalCategories.map(([key, label]) => (
             <label key={key} className="flex items-center gap-2 text-[13px]">
@@ -168,7 +196,6 @@ export function SecurityPolicyEditor() {
         </div>
       </section>
 
-      {/* Limits */}
       <section className="flex flex-col gap-2">
         <h3 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">
           限制
@@ -176,12 +203,17 @@ export function SecurityPolicyEditor() {
         <div className="flex flex-col gap-3">
           <div>
             <label className="text-[13px] text-muted-foreground">
-              最大文件大小 (MB, 0 = 不限制)</label>
+              最大文件大小 (MB, 0 = 不限制)
+            </label>
             <input
               type="number"
               value={policy.max_file_size_mb}
               onChange={(e) =>
-                setPolicy({ ...policy, max_file_size_mb: parseInt(e.target.value) || 0 })
+                setPolicy({
+                  ...policy,
+                  max_file_size_mb: parseInt(e.target.value, 10) || 0,
+                  preset_name: null,
+                })
               }
               className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               min={0}
@@ -189,12 +221,17 @@ export function SecurityPolicyEditor() {
           </div>
           <div>
             <label className="text-[13px] text-muted-foreground">
-              最大进程数 (0 = 不限制)</label>
+              最大进程数 (0 = 不限制)
+            </label>
             <input
               type="number"
               value={policy.max_process_count}
               onChange={(e) =>
-                setPolicy({ ...policy, max_process_count: parseInt(e.target.value) || 0 })
+                setPolicy({
+                  ...policy,
+                  max_process_count: parseInt(e.target.value, 10) || 0,
+                  preset_name: null,
+                })
               }
               className="mt-1 w-32 rounded-md border border-border bg-background px-3 py-1.5 text-[13px] font-mono"
               min={0}
@@ -203,32 +240,29 @@ export function SecurityPolicyEditor() {
         </div>
       </section>
 
-      {/* Actions */}
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => void handleSave()}
           disabled={saving}
           className="rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {saving ? "保存中..." : "保存策略"}
+          {saving ? "保存中..." : saved ? "已保存" : "保存策略"}
         </button>
         <button
           type="button"
-          onClick={handleReset}
+          onClick={() => void handleReset()}
           className="rounded-md border border-border px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted/50"
         >
-          恢复默认        </button>
+          恢复默认
+        </button>
       </div>
     </div>
   );
 }
 
 function presetMatches(presetKey: string, name: string): boolean {
-  const map: Record<string, string> = {
-    permissive: "Permissive",
-    standard: "Standard",
-    strict: "Strict",
-  };
-  return map[presetKey] === name;
+  const zh = PRESET_NAME_ZH[presetKey];
+  const en = PRESET_LABELS[presetKey];
+  return name === zh || name === en;
 }

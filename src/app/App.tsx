@@ -94,6 +94,7 @@ import {
   leafIds,
   respawnSession,
   TerminalStack,
+  isSessionReady,
   whenSessionReady,
   writeToSession,
   type TerminalPaneHandle,
@@ -109,7 +110,7 @@ import {
   themeFilePath,
   writeThemeFile,
 } from "@/modules/theme/themeFiles";
-import { UpdaterDialog } from "@/modules/updater";
+import { UpdaterDialog, UpdaterProvider } from "@/modules/updater";
 import {
   currentWorkspaceEnv,
   getWslHome,
@@ -121,6 +122,7 @@ import {
   type WorkspaceEnv,
 } from "@/modules/workspace";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { homeDir } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import type { SearchAddon } from "@xterm/addon-search";
@@ -129,9 +131,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
 const AI_PANEL_WIDTH_KEY = "gencode-ai-panel-width";
-const AI_PANEL_MIN_WIDTH = 320;
-const AI_PANEL_MAX_WIDTH = 480;
-const AI_PANEL_DEFAULT_WIDTH = 380;
+const AI_PANEL_MIN_WIDTH = 380;
+const AI_PANEL_MAX_WIDTH = 680;
+const AI_PANEL_DEFAULT_WIDTH = 460;
 
 function clampAiPanelWidth(width: number): number {
   return Math.min(
@@ -149,7 +151,10 @@ function readAiPanelWidth(): number {
       if (legacy !== null && Number(legacy) <= 100) return AI_PANEL_DEFAULT_WIDTH;
     }
     const n = raw ? Number(raw) : AI_PANEL_DEFAULT_WIDTH;
-    return Number.isFinite(n) ? clampAiPanelWidth(n) : AI_PANEL_DEFAULT_WIDTH;
+    if (!Number.isFinite(n)) return AI_PANEL_DEFAULT_WIDTH;
+    const clamped = clampAiPanelWidth(n);
+    if (clamped < 420) return AI_PANEL_DEFAULT_WIDTH;
+    return clamped;
   } catch {
     return AI_PANEL_DEFAULT_WIDTH;
   }
@@ -711,18 +716,43 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+    let unlisten: (() => void) | undefined;
+    void listen<string>("gencode:open-folder", (event) => {
+      if (event.payload) handleChangeExplorerRoot(event.payload);
+    }).then((fn) => {
+      if (alive) unlisten = fn;
+      else fn();
+    });
+    return () => {
+      alive = false;
+      unlisten?.();
+    };
+  }, [handleChangeExplorerRoot]);
+
+  const editorFocusPendingRef = useRef<number | null>(null);
+
+  useEffect(() => {
     setActiveSearchAddon(
       activeLeafId !== null ? (searchAddons.current.get(activeLeafId) ?? null) : null,
     );
+  }, [activeLeafId]);
+
+  useEffect(() => {
     setActiveEditorHandle(editorRefs.current.get(activeId) ?? null);
     if (activeTab?.kind === "editor") {
       const handle = editorRefs.current.get(activeId);
       setEditorCursor(handle?.getCursorPosition() ?? null);
-      requestAnimationFrame(() => handle?.focus());
+      editorFocusPendingRef.current = activeId;
+      if (handle?.getContent() != null) {
+        handle.focus();
+        editorFocusPendingRef.current = null;
+      }
     } else {
       setEditorCursor(null);
+      editorFocusPendingRef.current = null;
     }
-  }, [activeId, activeLeafId, activeTab?.kind]);
+  }, [activeId, activeTab?.kind]);
 
   const handleSearchReady = useCallback(
     (leafId: number, addon: SearchAddon) => {
@@ -970,6 +1000,12 @@ export default function App() {
     },
     [newTab],
   );
+
+  const handleEditorReady = useCallback((tabId: number) => {
+    if (editorFocusPendingRef.current !== tabId) return;
+    editorRefs.current.get(tabId)?.focus();
+    editorFocusPendingRef.current = null;
+  }, []);
 
   const handleOpenFile = useCallback(
     (path: string, pin?: boolean) => {
@@ -1437,10 +1473,15 @@ export default function App() {
         useManagedAgentsStore
           .getState()
           .register({ leafId, tabId, sessionId, task: oneLine, cwd });
-        // Claude reads settings.json at startup, so the review-loop hooks must
-        // be in place before the command runs. Best-effort: never block spawn.
+        // Claude reads settings.json at startup, so the review-loop hooks and
+        // the Chinese-locale merge must be in place before the command runs.
+        // Re-merge per launch: external tools (e.g. API proxy managers) rewrite
+        // ~/.claude/settings.json and strip the language key after app startup.
+        // Best-effort: never block spawn.
         const hooksReady = invoke("agent_enable_claude_hooks").catch(() => {});
-        void Promise.all([whenSessionReady(leafId), hooksReady]).then(() => {
+        const localeReady = invoke("claude_code_ensure_locale").catch(() => {});
+        void Promise.all([whenSessionReady(leafId), hooksReady, localeReady]).then(() => {
+          if (!isSessionReady(leafId)) return;
           if (writeToSession(leafId, `claude ${quoteShellArg(oneLine)}\r`)) {
             useManagedAgentsStore.getState().setPhase(leafId, "working");
           }
@@ -1450,11 +1491,12 @@ export default function App() {
       openClaudeCodeTerminal: () => {
         const cwd = findCwd();
         const hooksReady = invoke("agent_enable_claude_hooks").catch(() => {});
+        const localeReady = invoke("claude_code_ensure_locale").catch(() => {});
         const { tabId, leafId } = newAgentTab(cwd ?? undefined, "claude");
-        void Promise.all([whenSessionReady(leafId), hooksReady]).then(() => {
-          if (writeToSession(leafId, "claude\r")) {
-            terminalRefs.current.get(leafId)?.focus();
-          }
+        void Promise.all([whenSessionReady(leafId), hooksReady, localeReady]).then(() => {
+          if (!isSessionReady(leafId)) return;
+          const wrote = writeToSession(leafId, "claude\r");
+          if (wrote) terminalRefs.current.get(leafId)?.focus();
         });
         return { tabId, leafId };
       },
@@ -1510,6 +1552,7 @@ export default function App() {
           onCloseTab={disposeTab}
           onCursorChange={handleEditorCursor}
           onFormat={handleEditorFormat}
+          onEditorReady={handleEditorReady}
         />
       </div>
       <div
@@ -1577,6 +1620,7 @@ export default function App() {
 
   const shell = (
     <ThemeProvider defaultMode="dark">
+      <UpdaterProvider>
       <TooltipProvider>
         <div className="relative flex h-screen flex-col overflow-hidden bg-background text-foreground">
           <Header
@@ -1813,6 +1857,7 @@ export default function App() {
           </AlertDialog>
         </div>
       </TooltipProvider>
+      </UpdaterProvider>
     </ThemeProvider>
   );
 

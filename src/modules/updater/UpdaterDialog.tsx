@@ -1,3 +1,4 @@
+import { GenCodeLogoMark } from "@/components/GenCodeLogoMark";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,9 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useState } from "react";
-import { useUpdater } from "./useUpdater";
+import { useUpdaterContext } from "./UpdaterProvider";
 
 type DistroKey = "arch" | "debian" | "fedora";
 
@@ -38,7 +40,7 @@ function formatBytes(n: number): string {
 }
 
 export function UpdaterDialog() {
-  const { status, install, dismiss } = useUpdater();
+  const { status, install, dismiss } = useUpdaterContext();
   const [copied, setCopied] = useState(false);
   const [distro, setDistro] = useState<DistroKey>("arch");
   const manualVersion =
@@ -68,110 +70,146 @@ export function UpdaterDialog() {
       // ignore
     }
   };
-  const progress =
+
+  const progressPct =
     downloading && status.contentLength
       ? Math.min(100, (status.downloaded / status.contentLength) * 100)
       : null;
+
+  const canDismiss =
+    status.kind === "available" || status.kind === "manual-available";
+
+  const title = ready
+    ? "更新就绪"
+    : downloading
+      ? "正在下载更新"
+      : manual
+        ? `发现新版本 v${manual.version}`
+        : `发现新版本 v${update?.version ?? ""}`;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (
-          !o &&
-          (status.kind === "available" || status.kind === "manual-available")
-        )
-          dismiss();
+        if (!o && canDismiss) dismiss();
       }}
     >
-      <DialogContent className="sm:max-w-[440px]">
-        <DialogHeader>
-          <DialogTitle>
-            {ready
-              ? "更新就绪"
-              : downloading
-                ? "正在下载更新…"
-                : manual
-                  ? `GenCode v${manual.version} 可用`
-                  : `GenCode v${update?.version} 可用`}
-          </DialogTitle>
-          <DialogDescription>
-            {ready
-              ? "重启 GenCode 以完成安装。"
-              : downloading
-                ? progress !== null
-                  ? `${progress.toFixed(0)}% — ${formatBytes(status.downloaded)}`
-                  : formatBytes(status.downloaded)
-                : manual
-                  ? `当前版本 v${manual.currentVersion}。选择你的发行版并运行命令，或从 GitHub 下载安装包。`
-                  : update?.body || "新版本已准备安装。"}
-          </DialogDescription>
-        </DialogHeader>
-
-        {downloading && progress !== null && (
-          <Progress value={progress} className="mt-2" />
+      <DialogContent
+        showCloseButton={canDismiss}
+        className={cn(
+          "gap-0 overflow-hidden border-border/60 bg-card p-0 text-card-foreground sm:max-w-[440px]",
+          "shadow-2xl ring-1 ring-border/40",
         )}
-        {downloading && progress === null && (
-          <Progress value={undefined} className="mt-2 animate-pulse" />
-        )}
+      >
+        <div className="flex items-start gap-3 border-b border-border/40 bg-muted/20 px-5 py-4">
+          <GenCodeLogoMark size={28} className="mt-0.5 shrink-0" />
+          <DialogHeader className="gap-1 text-left">
+            <DialogTitle className="text-[15px] font-semibold tracking-tight">
+              {title}
+            </DialogTitle>
+            <DialogDescription className="text-[12px] leading-relaxed">
+              {ready
+                ? "安装包已就绪，重启后即可使用新版本。"
+                : downloading
+                  ? "请保持窗口打开，下载完成后将自动重启应用。"
+                  : manual
+                    ? `当前 v${manual.currentVersion}。选择发行版复制安装命令，或从 GitHub 下载。`
+                    : update?.body?.trim() || "建议安装最新版本以获得修复与改进。"}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        {manual && (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex gap-1 rounded-md bg-muted/40 p-1">
-              {DISTROS.map((d) => (
-                <button
-                  key={d.key}
-                  type="button"
-                  onClick={() => setDistro(d.key)}
-                  className={`flex-1 rounded px-2 py-1 text-[13px] transition-colors ${
-                    distro === d.key
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
+        <div className="flex flex-col gap-4 px-5 py-4">
+          {downloading && (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[12px] font-medium text-foreground">
+                  下载进度
+                </span>
+                <span className="font-mono text-[11.5px] tabular-nums text-muted-foreground">
+                  {progressPct !== null
+                    ? `${progressPct.toFixed(0)}%`
+                    : "准备中…"}
+                  {status.contentLength
+                    ? ` · ${formatBytes(status.downloaded)} / ${formatBytes(status.contentLength)}`
+                    : status.downloaded > 0
+                      ? ` · ${formatBytes(status.downloaded)}`
+                      : ""}
+                </span>
+              </div>
+              <Progress
+                value={progressPct ?? undefined}
+                className={cn(
+                  "h-2 bg-muted/60",
+                  progressPct === null && "animate-pulse",
+                )}
+              />
+            </div>
+          )}
+
+          {manual && !downloading && (
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1 rounded-lg bg-muted/40 p-1">
+                {DISTROS.map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => setDistro(d.key)}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-[12px] transition-colors",
+                      distro === d.key
+                        ? "bg-background font-medium text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-[12px]">
+                <span className="flex-1 select-all break-all">
+                  $ {activeCommand}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 px-2 text-[12px]"
+                  onClick={() => void copyCommand()}
                 >
-                  {d.label}
-                </button>
-              ))}
+                  {copied ? "已复制" : "复制"}
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2 font-mono text-[13px]">
-              <span className="flex-1 select-all">$ {activeCommand}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-[13px]"
-                onClick={() => void copyCommand()}
-              >
-                {copied ? "已复制" : "复制"}
-              </Button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        <DialogFooter>
-          {status.kind === "available" && (
-            <>
-              <Button variant="ghost" size="sm" onClick={dismiss}>
-                稍后
-              </Button>
-              <Button size="sm" onClick={() => void install()}>
-                安装并重启
-              </Button>
-            </>
-          )}
-          {manual && (
-            <>
-              <Button variant="ghost" size="sm" onClick={dismiss}>
-                稍后
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void openUrl(manual.releaseUrl)}
-              >
-                下载安装包
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+        {(status.kind === "available" || manual) && (
+          <DialogFooter className="border-t border-border/40 bg-muted/10 px-5 py-3">
+            {status.kind === "available" && (
+              <>
+                <Button variant="ghost" size="sm" onClick={dismiss}>
+                  稍后
+                </Button>
+                <Button size="sm" onClick={() => void install()}>
+                  安装并重启
+                </Button>
+              </>
+            )}
+            {manual && (
+              <>
+                <Button variant="ghost" size="sm" onClick={dismiss}>
+                  稍后
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void openUrl(manual.releaseUrl)}
+                >
+                  下载安装包
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

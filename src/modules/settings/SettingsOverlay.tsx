@@ -83,8 +83,8 @@ export function SettingsOverlay() {
             </nav>
           </aside>
 
-          <main className="min-h-0 flex-1 overflow-y-auto bg-background/50">
-            <div className="mx-auto w-full max-w-2xl px-8 py-7">
+          <main className="min-h-0 flex-1 overflow-y-auto bg-background/50 px-6 py-6 sm:px-10 md:px-14 lg:px-20 xl:px-28">
+            <div className="mx-auto w-full max-w-3xl xl:max-w-4xl">
               {ActiveSection ? <ActiveSection /> : null}
             </div>
           </main>

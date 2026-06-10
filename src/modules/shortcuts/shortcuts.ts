@@ -36,13 +36,13 @@ export type ShortcutId =
   | "claudeCode.commands";
 
 export type ShortcutGroup =
-  | "General"
-  | "Tabs"
-  | "Panes"
-  | "Search"
+  | "常规"
+  | "标签页"
+  | "窗格"
+  | "搜索"
   | "AI"
-  | "View"
-  | "Editor"
+  | "视图"
+  | "编辑器"
   | "Claude Code";
 
 export type KeyBinding = {
@@ -64,140 +64,140 @@ export type Shortcut = {
 export const SHORTCUTS: Shortcut[] = [
   {
     id: "settings.open",
-    label: "Open settings",
-    group: "General",
+    label: "打开设置",
+    group: "常规",
     defaultBindings: [{ [MOD_PROP]: true, key: "," }],
   },
   {
     id: "shortcuts.open",
-    label: "Show keyboard shortcuts",
-    group: "General",
+    label: "显示快捷键",
+    group: "常规",
     defaultBindings: [{ [MOD_PROP]: true, key: "k" }],
   },
   {
     id: "tab.new",
-    label: "New tab",
-    group: "Tabs",
+    label: "新建标签页",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "t" }],
   },
   {
     id: "tab.newPrivate",
-    label: "New private terminal",
-    group: "Tabs",
+    label: "新建隐私终端",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "r" }],
   },
   {
     id: "tab.newPreview",
-    label: "New preview tab",
-    group: "Tabs",
+    label: "新建预览标签页",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "p" }],
   },
   {
     id: "tab.newEditor",
-    label: "New editor tab",
-    group: "Tabs",
+    label: "新建编辑器标签页",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "e" }],
   },
   {
     id: "tab.close",
-    label: "Close tab or pane",
-    group: "Tabs",
+    label: "关闭标签页或窗格",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "w" }],
   },
   {
     id: "pane.splitRight",
-    label: "Split pane right",
-    group: "Panes",
+    label: "向右分屏",
+    group: "窗格",
     defaultBindings: [{ [MOD_PROP]: true, key: "d" }],
   },
   {
     id: "pane.splitDown",
-    label: "Split pane down",
-    group: "Panes",
+    label: "向下分屏",
+    group: "窗格",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "d" }],
   },
   {
     id: "pane.focusNext",
-    label: "Focus next pane",
-    group: "Panes",
+    label: "聚焦下一个窗格",
+    group: "窗格",
     defaultBindings: [{ [MOD_PROP]: true, key: "]" }],
   },
   {
     id: "pane.focusPrev",
-    label: "Focus previous pane",
-    group: "Panes",
+    label: "聚焦上一个窗格",
+    group: "窗格",
     defaultBindings: [{ [MOD_PROP]: true, key: "[" }],
   },  
   {
     id: "pane.source",
-    label: "Toggle source panel",
-    group: "Panes",
+    label: "切换源码面板",
+    group: "窗格",
     defaultBindings: [{ [MOD_PROP]: true, key: "g" }],
   },
   {
     id: "tab.next",
-    label: "Next tab",
-    group: "Tabs",
+    label: "下一个标签页",
+    group: "标签页",
     defaultBindings: [{ ctrl: true, key: "Tab" }],
   },
   {
     id: "tab.prev",
-    label: "Previous tab",
-    group: "Tabs",
+    label: "上一个标签页",
+    group: "标签页",
     defaultBindings: [{ ctrl: true, shift: true, key: "Tab" }],
   },
   {
     id: "tab.selectByIndex",
-    label: "Jump to tab 1–9",
-    group: "Tabs",
+    label: "跳转到标签页 1–9",
+    group: "标签页",
     defaultBindings: [{ [MOD_PROP]: true, key: "1" }],
   },
   {
     id: "explorer.search",
-    label: "Search files",
-    group: "Search",
+    label: "搜索文件",
+    group: "搜索",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "f" }],
   },
   {
     id: "search.focus",
-    label: "Find in terminal",
-    group: "Search",
+    label: "在终端中查找",
+    group: "搜索",
     defaultBindings: [{ [MOD_PROP]: true, key: "f" }],
   },
   {
     id: "ai.toggle",
-    label: "Toggle AI agent",
+    label: "切换 AI 助手",
     group: "AI",
     defaultBindings: [{ [MOD_PROP]: true, key: "i" }],
   },
   {
     id: "ai.askSelection",
-    label: "Ask AI about selection",
+    label: "向 AI 询问选中内容",
     group: "AI",
     defaultBindings: [{ [MOD_PROP]: true, key: "l" }],
   },
   {
     id: "claudeCode.commands",
-    label: "Claude Code command reference",
+    label: "Claude Code 命令参考",
     group: "Claude Code",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "?" }],
   },
   {
     id: "sidebar.toggle",
-    label: "Toggle file explorer",
-    group: "View",
+    label: "切换资源管理器",
+    group: "视图",
     defaultBindings: [{ [MOD_PROP]: true, key: "b" }],
   },
   {
     id: "explorer.focus",
-    label: "Toggle file explorer focus",
-    group: "View",
+    label: "切换资源管理器焦点",
+    group: "视图",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, key: "e" }],
   },
   {
     id: "view.zoomIn",
-    label: "Zoom in",
-    group: "View",
+    label: "放大",
+    group: "视图",
     defaultBindings: [
       { [MOD_PROP]: true, key: "=" },
       { [MOD_PROP]: true, shift: true, key: "+" },
@@ -206,8 +206,8 @@ export const SHORTCUTS: Shortcut[] = [
   },
   {
     id: "view.zoomOut",
-    label: "Zoom out",
-    group: "View",
+    label: "缩小",
+    group: "视图",
     defaultBindings: [
       { [MOD_PROP]: true, key: "-" },
       { [MOD_PROP]: true, shift: true, key: "_" },
@@ -216,8 +216,8 @@ export const SHORTCUTS: Shortcut[] = [
   },
   {
     id: "view.zoomReset",
-    label: "Reset zoom",
-    group: "View",
+    label: "重置缩放",
+    group: "视图",
     defaultBindings: [{ [MOD_PROP]: true, key: "0" }],
   },
   // Editor entries are display-only: CodeMirror's historyKeymap binds these
@@ -227,38 +227,38 @@ export const SHORTCUTS: Shortcut[] = [
   // Also excluded from the customization UI in ShortcutsSection.
   {
     id: "editor.undo",
-    label: "Undo",
-    group: "Editor",
+    label: "撤销",
+    group: "编辑器",
     defaultBindings: [{ [MOD_PROP]: true, key: "z" }],
   },
   {
     id: "editor.redo",
-    label: "Redo",
-    group: "Editor",
+    label: "重做",
+    group: "编辑器",
     defaultBindings: [{ [MOD_PROP]: true, key: "y" }],
   },
   {
     id: "editor.replace",
-    label: "Find and replace",
-    group: "Editor",
+    label: "查找并替换",
+    group: "编辑器",
     defaultBindings: [{ [MOD_PROP]: true, key: "h" }],
   },
   {
     id: "editor.format",
-    label: "Format document",
-    group: "Editor",
+    label: "格式化文档",
+    group: "编辑器",
     defaultBindings: [{ [MOD_PROP]: true, shift: true, alt: true, key: "f" }],
   },
 ];
 
 export const SHORTCUT_GROUPS: ShortcutGroup[] = [
-  "General",
-  "Tabs",
-  "Panes",
-  "View",
-  "Search",
+  "常规",
+  "标签页",
+  "窗格",
+  "视图",
+  "搜索",
   "AI",
-  "Editor",
+  "编辑器",
 ];
 
 /**

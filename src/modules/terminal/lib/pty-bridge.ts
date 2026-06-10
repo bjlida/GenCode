@@ -1,6 +1,15 @@
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { currentWorkspaceEnv } from "@/modules/workspace";
 
+function toPtyBytes(buf: unknown): Uint8Array | null {
+  if (buf instanceof ArrayBuffer) return new Uint8Array(buf);
+  if (ArrayBuffer.isView(buf)) {
+    const v = buf as ArrayBufferView;
+    return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  }
+  return null;
+}
+
 export type PtyHandlers = {
   onData: (bytes: Uint8Array) => void;
   onExit?: (code: number) => void;
@@ -32,7 +41,10 @@ export async function openPty(
     onExit.onmessage = noop;
   };
 
-  onData.onmessage = (buf) => handlers.onData(new Uint8Array(buf));
+  onData.onmessage = (buf) => {
+    const bytes = toPtyBytes(buf);
+    if (bytes) handlers.onData(bytes);
+  };
   onExit.onmessage = (code) => {
     handlers.onExit?.(code);
     releaseHandlers();

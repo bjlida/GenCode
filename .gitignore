@@ -19,6 +19,12 @@ src-tauri/.cargo/config.toml
 *.key
 /keys
 keys.pub
+# Tauri plugin-store / keychain file fallback (local dev only — never commit)
+gencode-settings.json
+gencode-ai-*.json
+gencode-custom-themes.json
+secrets.json
+stores/
 
 # --- Internal dev docs ---
 CLAUDE.md

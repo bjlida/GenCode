@@ -1,5 +1,5 @@
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -105,6 +105,16 @@ pub fn spawn(
     on_exit: Channel<i32>,
 ) -> Result<(Arc<Session>, PtySize), String> {
     let cmd = shell_init::build_command(cwd, workspace)?;
+    let spawn_argv: Vec<String> = cmd
+        .get_argv()
+        .into_iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let shell_exe = spawn_argv.first().map(|s| s.as_str()).unwrap_or("");
+    let shell_lower = shell_exe.to_ascii_lowercase();
+    let is_pwsh = shell_lower.ends_with("pwsh.exe");
+    let ps5_plain = shell_lower.ends_with("powershell.exe")
+        && !spawn_argv.iter().any(|a| a == "-File" || a.starts_with("-Command"));
     spawn_inner(id, app, cols, rows, cmd, on_data, on_exit)
 }
 
@@ -158,15 +168,25 @@ fn spawn_inner(
     #[cfg(windows)]
     let _spawn_guard = CONPTY_LIFECYCLE_LOCK.lock().unwrap();
 
+    // ConPTY on Windows often yields no shell output when opened at the UI's
+    // full size (e.g. 129x47); boot at 80x24 then resize (matches first-tab path).
+    #[cfg(windows)]
+    const BOOT_COLS: u16 = 80;
+    #[cfg(windows)]
+    const BOOT_ROWS: u16 = 24;
+    #[cfg(windows)]
+    let (open_cols, open_rows) = (BOOT_COLS, BOOT_ROWS);
+    #[cfg(not(windows))]
+    let (open_cols, open_rows) = (cols, rows);
+
     let pty_system = native_pty_system();
-    let size = PtySize {
-        rows,
-        cols,
+    let open_size = PtySize {
+        rows: open_rows,
+        cols: open_cols,
         pixel_width: 0,
         pixel_height: 0,
     };
-    let pair = pty_system.openpty(size).map_err(|e| e.to_string())?;
-
+    let pair = pty_system.openpty(open_size).map_err(|e| e.to_string())?;
     let mut child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     drop(pair.slave);
 
@@ -205,11 +225,13 @@ fn spawn_inner(
         Condvar::new(),
     ));
     let done = Arc::new(AtomicBool::new(false));
+    let total_out = Arc::new(AtomicU64::new(0));
     let spawn_at = Instant::now();
 
     let pending_r = pending.clone();
     let writer_for_da = writer.clone();
     let app_reader = app.clone();
+    let total_out_reader = total_out.clone();
     let reader_thread = thread::Builder::new()
         .name("gencode-pty-reader".into())
         .spawn(move || {
@@ -225,7 +247,8 @@ fn spawn_inner(
                     Ok(n) => {
                         if !logged_first {
                             logged_first = true;
-                            log::debug!("pty first byte after {}ms", spawn_at.elapsed().as_millis());
+                            let ms = spawn_at.elapsed().as_millis();
+                            log::debug!("pty first byte after {ms}ms");
                         }
                         agent_detect.process(&buf[..n], |t| {
                             let _ = app_reader.emit(AGENT_EVENT, t.into_signal(id));
@@ -239,6 +262,7 @@ fn spawn_inner(
                         if filtered.is_empty() {
                             continue;
                         }
+                        total_out_reader.fetch_add(filtered.len() as u64, Ordering::Relaxed);
                         let (lock, cv) = &*pending_r;
                         let mut g = lock.lock().unwrap();
                         if g.len() + filtered.len() > MAX_PENDING {
@@ -268,6 +292,7 @@ fn spawn_inner(
     let on_data_flush = on_data.clone();
     let pending_f = pending.clone();
     let done_f = done.clone();
+    let total_out_flush = total_out.clone();
     let flusher_thread = thread::Builder::new()
         .name("gencode-pty-flusher".into())
         .spawn(move || {
@@ -297,8 +322,10 @@ fn spawn_inner(
         })
         .expect("spawn pty flusher thread");
 
+    let on_data_exit = on_data;
     let pending_e = pending;
     let done_e = done;
+    let total_out_exit = total_out.clone();
     thread::Builder::new()
         .name("gencode-pty-waiter".into())
         .spawn(move || {
@@ -309,13 +336,11 @@ fn spawn_inner(
                     -1
                 }
             };
-            // Wait for the reader to hit EOF before letting the flusher drain
-            // and before sending Exit. On Windows the PTY reader can be slow to
-            // unblock, so use a bounded wait; duplicate/lost final chunks are
-            // avoided by having exactly one owner (the flusher) send pending data.
+            // Wait for the reader to hit EOF before taking a final snapshot of
+            // `pending`, so the last line of output never races the Exit event.
             #[cfg(windows)]
             {
-                let deadline = Instant::now() + Duration::from_millis(250);
+                let deadline = Instant::now() + Duration::from_millis(50);
                 while Instant::now() < deadline && !reader_thread.is_finished() {
                     thread::sleep(Duration::from_millis(5));
                 }
@@ -324,7 +349,14 @@ fn spawn_inner(
             if let Err(e) = reader_thread.join() {
                 log::error!("pty reader thread panicked: {e:?}");
             }
-            let (_, cv) = &*pending_e;
+            let (lock, cv) = &*pending_e;
+            let tail = std::mem::take(&mut *lock.lock().unwrap());
+            if !tail.is_empty() {
+                total_out_exit.fetch_add(tail.len() as u64, Ordering::Relaxed);
+                if let Err(e) = on_data_exit.send(Response::new(tail)) {
+                    log::debug!("pty final-data send failed (channel closed): {e}");
+                }
+            }
             done_e.store(true, Ordering::Release);
             cv.notify_all();
             if let Err(e) = flusher_thread.join() {
@@ -336,5 +368,11 @@ fn spawn_inner(
         })
         .expect("spawn pty waiter thread");
 
+    let size = PtySize {
+        rows,
+        cols,
+        pixel_width: 0,
+        pixel_height: 0,
+    };
     Ok((session, size))
 }

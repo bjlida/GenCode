@@ -42,7 +42,9 @@ export function EditorContextMenu({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger asChild className="select-text">
+        {children}
+      </ContextMenuTrigger>
       <ContextMenuContent className={COMPACT_CONTENT}>
         <ContextMenuItem className={COMPACT_ITEM} onSelect={() => withFocus(onUndo)}>
           撤销

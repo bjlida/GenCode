@@ -62,11 +62,30 @@ pub fn build_command(
     }
 }
 
+fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
+    let is_utf8 = |v: &str| {
+        let up = v.to_ascii_uppercase();
+        up.contains("UTF-8") || up.contains("UTF8")
+    };
+    let already_utf8 = ["LC_ALL", "LC_CTYPE", "LANG"]
+        .iter()
+        .any(|k| std::env::var(k).ok().as_deref().is_some_and(is_utf8));
+    if already_utf8 {
+        return;
+    }
+    #[cfg(target_os = "macos")]
+    let fallback = "en_US.UTF-8";
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let fallback = "C.UTF-8";
+    #[cfg(windows)]
+    let fallback = "en_US.UTF-8";
+    cmd.env("LANG", fallback);
+}
+
 fn apply_chinese_locale(cmd: &mut CommandBuilder) {
     const LOCALE: &str = "zh_CN.UTF-8";
     cmd.env("LANG", LOCALE);
     cmd.env("LC_ALL", LOCALE);
-    #[cfg(unix)]
     cmd.env("LC_MESSAGES", LOCALE);
 }
 
@@ -74,7 +93,7 @@ fn apply_common(cmd: &mut CommandBuilder, cwd: Option<String>) {
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("GENCODE_TERMINAL", "1");
-    apply_chinese_locale(cmd);
+    ensure_utf8_locale(cmd);
 
     let resolved_cwd = cwd
         .map(PathBuf::from)
@@ -314,17 +333,30 @@ mod windows {
         super::apply_common(&mut cmd, cwd);
 
         if is_powershell {
-            match prepare_ps_profile() {
-                Ok(profile) => {
-                    cmd.arg("-NoLogo");
-                    cmd.arg("-NoExit");
-                    cmd.arg("-ExecutionPolicy");
-                    cmd.arg("Bypass");
-                    cmd.arg("-File");
-                    cmd.arg(profile);
-                }
-                Err(e) => {
-                    log::warn!("powershell shell integration disabled: {e}");
+            cmd.arg("-NoLogo");
+            cmd.arg("-NoExit");
+            // Windows PowerShell 5.1 under ConPTY: -File/-Command + integration profile
+            // yields no usable stdout (logs: totalOut=4, exit=1). pwsh uses -File profile.
+            let ps5_plain = shell_name == "powershell.exe";
+            if ps5_plain {
+                log::info!("spawning Windows PowerShell 5.1 without integration profile (ConPTY)");
+            } else {
+                match prepare_ps_profile() {
+                    Ok(profile) => {
+                        log::info!(
+                            "powershell integration profile: {}",
+                            profile.display()
+                        );
+                        cmd.arg("-ExecutionPolicy");
+                        cmd.arg("Bypass");
+                        cmd.arg("-File");
+                        cmd.arg(profile);
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "powershell shell integration disabled: {e}; spawning plain shell"
+                        );
+                    }
                 }
             }
         } else {
@@ -737,14 +769,77 @@ mod windows {
 }
 
 #[cfg(windows)]
-pub fn windows_shell_path() -> PathBuf {
-    if let Some(p) = which_in_path("pwsh.exe") {
-        return p;
+fn is_usable_exe(path: &std::path::Path) -> bool {
+    if !path.is_file() {
+        return false;
     }
+    std::fs::metadata(path)
+        .map(|m| m.len() > 0)
+        .unwrap_or(false)
+}
 
-    if let Some(pf) = std::env::var_os("ProgramFiles").map(PathBuf::from) {
-        let candidate = pf.join("PowerShell").join("7").join("pwsh.exe");
-        if candidate.is_file() {
+/// MS Store / winget installs land under Program Files\WindowsApps\Microsoft.PowerShell_*.
+#[cfg(windows)]
+fn pwsh_from_store_package() -> Option<PathBuf> {
+    let root = PathBuf::from(r"C:\Program Files\WindowsApps");
+    let entries = std::fs::read_dir(&root).ok()?;
+    let mut best: Option<(String, PathBuf)> = None;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("Microsoft.PowerShell_") {
+            continue;
+        }
+        let pwsh = entry.path().join("pwsh.exe");
+        if is_usable_exe(&pwsh)
+            && (best.as_ref().is_none_or(|(n, _)| name > *n))
+        {
+            best = Some((name, pwsh));
+        }
+    }
+    best.map(|(_, p)| p)
+}
+
+#[cfg(windows)]
+fn pwsh_candidate_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if let Some(p) = which_in_path("pwsh.exe") {
+        paths.push(p);
+    }
+    if let Some(pf) = std::env::var_os("ProgramFiles") {
+        let root = PathBuf::from(pf);
+        for ver in ["7", "7-preview", "8"] {
+            paths.push(root.join("PowerShell").join(ver).join("pwsh.exe"));
+        }
+    }
+    if let Some(p) = pwsh_from_store_package() {
+        paths.push(p);
+    }
+    if let Some(home) = dirs::home_dir() {
+        paths.push(
+            home.join("scoop")
+                .join("apps")
+                .join("pwsh")
+                .join("current")
+                .join("pwsh.exe"),
+        );
+        paths.push(home.join("scoop").join("shims").join("pwsh.exe"));
+    }
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        paths.push(
+            PathBuf::from(local)
+                .join("Microsoft")
+                .join("WindowsApps")
+                .join("pwsh.exe"),
+        );
+    }
+    paths
+}
+
+#[cfg(windows)]
+pub fn windows_shell_path() -> PathBuf {
+    for candidate in pwsh_candidate_paths() {
+        if is_usable_exe(&candidate) {
+            log::info!("selected Windows shell: {}", candidate.display());
             return candidate;
         }
     }
@@ -769,7 +864,7 @@ fn which_in_path(name: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path) {
         let candidate = dir.join(name);
-        if candidate.is_file() {
+        if is_usable_exe(&candidate) {
             return Some(candidate);
         }
     }

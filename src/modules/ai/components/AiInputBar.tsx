@@ -231,11 +231,9 @@ export function AiInputBar({ embedded = false }: { embedded?: boolean }) {
     if (it) onPickItem(it);
   };
 
-  const voiceLabel = c.voice.recording
-    ? c.voice.liveTranscript || "正在聆听…"
-    : c.voice.transcribing
-      ? "正在转录…"
-      : null;
+  // Live transcript is written into the textarea via composer onLiveUpdate; do not
+  // repeat it in a second row (was causing duplicate lines during recording).
+  const voiceLabel = c.voice.transcribing ? "正在转录…" : null;
 
   const [dragOver, setDragOver] = useState(false);
 

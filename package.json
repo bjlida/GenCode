@@ -1,12 +1,13 @@
 {
   "name": "gencode",
   "private": true,
-  "version": "0.8.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/verify-no-secrets-in-artifacts.mjs dist",
+    "verify:no-secrets": "node scripts/verify-no-secrets-in-artifacts.mjs dist",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "vitest run",
@@ -48,7 +49,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@replit/codemirror-vim": "^6.3.0",
     "@tanstack/react-virtual": "^3.13.24",
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-autostart": "~2.5.1",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-log": "~2.8.0",
@@ -94,7 +95,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.3",
-    "@tauri-apps/cli": "^2",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^25.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

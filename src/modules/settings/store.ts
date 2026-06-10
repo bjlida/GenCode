@@ -14,6 +14,7 @@ import {
 } from "@/modules/ai/config";
 import type { KeyBinding, ShortcutId } from "@/modules/shortcuts/shortcuts";
 import type { VoiceProviderId } from "@/modules/ai/lib/voice/types";
+import { IS_WINDOWS } from "@/lib/platform";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { LazyStore } from "@tauri-apps/plugin-store";
 
@@ -27,6 +28,7 @@ export const EDITOR_THEMES = [
   "atomone",
   "aura",
   "copilot",
+  "gencode-dark",
   "github-dark",
   "github-light",
   "gruvbox-dark",
@@ -42,6 +44,7 @@ export const EDITOR_THEME_LABELS: Record<EditorThemeId, string> = {
   atomone: "Atom One",
   aura: "Aura",
   copilot: "Copilot",
+  "gencode-dark": "GenCode Dark",
   "github-dark": "GitHub Dark",
   "github-light": "GitHub Light",
   "gruvbox-dark": "Gruvbox Dark",
@@ -149,6 +152,8 @@ const KEY_EDITOR_WORD_WRAP = "editorWordWrap";
 const KEY_SHOW_HIDDEN = "showHidden";
 const LEGACY_KEY_SHOW_HIDDEN_DIRS = "showHiddenDirectories";
 const KEY_TERMINAL_WEBGL_ENABLED = "terminalWebglEnabled";
+/** One-time: switch Windows installs to canvas renderer (WebGL blank glyphs in WebView2). */
+const KEY_TERMINAL_WEBGL_WIN_CANVAS = "terminalWebglWinCanvasDefaultV1";
 const KEY_TERMINAL_FONT_FAMILY = "terminalFontFamily";
 const KEY_TERMINAL_LETTER_SPACING = "terminalLetterSpacing";
 const KEY_TERMINAL_FONT_SIZE = "terminalFontSize";
@@ -184,7 +189,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
   defaultModelId: DEFAULT_MODEL_ID,
-  editorTheme: "atomone",
+  editorTheme: "gencode-dark",
   customInstructions: "",
   autostart: false,
   restoreWindowState: true,
@@ -217,7 +222,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   vimMode: false,
   editorWordWrap: false,
   showHidden: false,
-  terminalWebglEnabled: true,
+  // WebGL glyph atlas stays blank on many Windows WebView2 builds; canvas is reliable.
+  terminalWebglEnabled: !IS_WINDOWS,
   terminalFontFamily: "JetBrains Mono",
   terminalLetterSpacing: 0,
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
@@ -251,6 +257,14 @@ export async function loadPreferences(): Promise<Preferences> {
   const entries = await store.entries();
   const map = new Map<string, unknown>(entries);
   const get = <T>(k: string): T | undefined => map.get(k) as T | undefined;
+
+  if (IS_WINDOWS && get<boolean>(KEY_TERMINAL_WEBGL_WIN_CANVAS) !== true) {
+    await store.set(KEY_TERMINAL_WEBGL_ENABLED, false);
+    await store.set(KEY_TERMINAL_WEBGL_WIN_CANVAS, true);
+    map.set(KEY_TERMINAL_WEBGL_ENABLED, false);
+    map.set(KEY_TERMINAL_WEBGL_WIN_CANVAS, true);
+  }
+
   return {
     theme: get<ThemePref>(KEY_THEME) ?? DEFAULT_PREFERENCES.theme,
     themeId: get<string>(KEY_THEME_ID) ?? DEFAULT_PREFERENCES.themeId,

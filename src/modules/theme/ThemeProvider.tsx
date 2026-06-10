@@ -141,8 +141,23 @@ export function ThemeProvider({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  const resolvedMode: "dark" | "light" =
+  const preferredMode: "dark" | "light" =
     mode === "system" ? (systemDark ? "dark" : "light") : mode;
+  const activeTheme = useMemo(
+    () => resolveTheme(themeId, customThemes),
+    [themeId, customThemes],
+  );
+  // applyTheme falls back to the variant the theme actually has (e.g. Tokyo
+  // Night is dark-only), so resolvedMode must reflect what is on screen —
+  // otherwise the root class and the paired editor theme go light while the
+  // UI renders dark, leaving unreadable dark-on-dark editor text.
+  const resolvedMode: "dark" | "light" = activeTheme.variants[preferredMode]
+    ? preferredMode
+    : activeTheme.variants.dark
+      ? "dark"
+      : activeTheme.variants.light
+        ? "light"
+        : preferredMode;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -154,12 +169,11 @@ export function ThemeProvider({
   useEffect(() => {
     if (themeId === DEFAULT_THEME_ID) {
       clearTheme();
-      lastEditorPairRef.current = null;
-      return;
+    } else {
+      applyTheme(activeTheme, resolvedMode);
     }
-    const theme = resolveTheme(themeId, customThemes);
-    applyTheme(theme, resolvedMode);
-    const editorPair = theme.editorTheme?.[resolvedMode];
+
+    const editorPair = activeTheme.editorTheme?.[resolvedMode];
     if (
       editorPair &&
       lastEditorPairRef.current !== editorPair &&
@@ -168,7 +182,7 @@ export function ThemeProvider({
       lastEditorPairRef.current = editorPair;
       void persistEditorTheme(editorPair as EditorThemeId);
     }
-  }, [themeId, resolvedMode, customThemes]);
+  }, [themeId, resolvedMode, activeTheme]);
 
   const setMode = useCallback((next: ThemePref) => {
     setModeState(next);

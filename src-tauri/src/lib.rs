@@ -2,7 +2,7 @@ mod modules;
 
 use modules::{agent, claude_code, fs, git, net, pty, sandbox, secrets, shell, workspace};
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_window_state::StateFlags;
 
 /// Drained on first read so HMR / re-mounts can't replay the launch dir.
@@ -14,18 +14,41 @@ fn get_launch_dir(state: State<'_, LaunchDir>) -> Option<String> {
     state.0.lock().expect("LaunchDir mutex poisoned").take()
 }
 
-fn parse_launch_dir() -> Option<String> {
-    for arg in std::env::args().skip(1) {
+fn parse_launch_dir_from_args(args: impl IntoIterator<Item = impl AsRef<str>>) -> Option<String> {
+    for arg in args {
+        let arg = arg.as_ref();
         if arg.starts_with('-') {
             continue;
         }
-        let Ok(canon) = std::fs::canonicalize(&arg) else { continue };
+        let Ok(canon) = std::fs::canonicalize(arg) else {
+            continue;
+        };
         if !canon.is_dir() {
             continue;
         }
         return Some(crate::modules::fs::to_canon(&canon));
     }
     None
+}
+
+fn parse_launch_dir() -> Option<String> {
+    parse_launch_dir_from_args(std::env::args().skip(1))
+}
+
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[cfg(desktop)]
+fn on_second_instance(app: &AppHandle, args: Vec<String>, _cwd: String) {
+    if let Some(path) = parse_launch_dir_from_args(args.iter().map(String::as_str)) {
+        let _ = app.emit("gencode:open-folder", path);
+    }
+    focus_main_window(app);
 }
 
 #[tauri::command]
@@ -85,7 +108,14 @@ pub fn run() {
     let cli_dir = parse_launch_dir();
     workspace::init_launch_cwd(cli_dir.as_deref());
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(on_second_instance));
+    }
+
+    builder
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         // Skip restoring VISIBLE — frontend calls window.show() after first

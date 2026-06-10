@@ -4,6 +4,7 @@ export {
   disposeSession,
   leafIdForPty,
   respawnSession,
+  isSessionReady,
   whenSessionReady,
   writeToSession,
 } from "./lib/useTerminalSession";

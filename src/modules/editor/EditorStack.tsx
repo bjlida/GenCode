@@ -13,6 +13,7 @@ type Props = {
   onCloseTab: (id: number) => void;
   onCursorChange?: (id: number, pos: EditorCursorPosition | null) => void;
   onFormat?: (id: number) => void;
+  onEditorReady?: (id: number) => void;
 };
 
 export function EditorStack({
@@ -23,6 +24,7 @@ export function EditorStack({
   onCloseTab,
   onCursorChange,
   onFormat,
+  onEditorReady,
 }: Props) {
   const editors = tabs.filter((t): t is EditorTab => t.kind === "editor");
 
@@ -34,6 +36,7 @@ export function EditorStack({
   const dirtyRef = useRef(onDirtyChange);
   const closeRef = useRef(onCloseTab);
   const formatRef = useRef(onFormat);
+  const readyRef = useRef(onEditorReady);
   useEffect(() => {
     registerRef.current = registerHandle;
   }, [registerHandle]);
@@ -46,6 +49,9 @@ export function EditorStack({
   useEffect(() => {
     formatRef.current = onFormat;
   }, [onFormat]);
+  useEffect(() => {
+    readyRef.current = onEditorReady;
+  }, [onEditorReady]);
 
   const refCallbacks = useRef(
     new Map<number, (h: EditorPaneHandle | null) => void>(),
@@ -53,6 +59,7 @@ export function EditorStack({
   const dirtyCallbacks = useRef(new Map<number, (dirty: boolean) => void>());
   const closeCallbacks = useRef(new Map<number, () => void>());
   const formatCallbacks = useRef(new Map<number, () => void>());
+  const readyCallbacks = useRef(new Map<number, () => void>());
 
   const getRefCallback = (id: number) => {
     let cb = refCallbacks.current.get(id);
@@ -86,6 +93,14 @@ export function EditorStack({
     }
     return cb;
   };
+  const getReadyCallback = (id: number) => {
+    let cb = readyCallbacks.current.get(id);
+    if (!cb) {
+      cb = () => readyRef.current?.(id);
+      readyCallbacks.current.set(id, cb);
+    }
+    return cb;
+  };
 
   const cursorCallbacks = useRef(
     new Map<number, (pos: EditorCursorPosition | null) => void>(),
@@ -114,6 +129,9 @@ export function EditorStack({
     }
     for (const id of formatCallbacks.current.keys()) {
       if (!live.has(id)) formatCallbacks.current.delete(id);
+    }
+    for (const id of readyCallbacks.current.keys()) {
+      if (!live.has(id)) readyCallbacks.current.delete(id);
     }
     for (const id of cursorCallbacks.current.keys()) {
       if (!live.has(id)) cursorCallbacks.current.delete(id);
@@ -145,16 +163,19 @@ export function EditorStack({
                 onClose={getCloseCallback(t.id)}
                 onCursorChange={getCursorCallback(t.id)}
                 onFormat={getFormatCallback(t.id)}
+                onReady={getReadyCallback(t.id)}
               />
             ) : (
               <div className="h-full overflow-hidden rounded-md border border-border/30 bg-background">
                 <EditorPane
                   ref={getRefCallback(t.id)}
                   path={t.path}
+                  visible={visible}
                   onDirtyChange={getDirtyCallback(t.id)}
                   onClose={getCloseCallback(t.id)}
                   onCursorChange={getCursorCallback(t.id)}
                   onFormat={getFormatCallback(t.id)}
+                  onReady={getReadyCallback(t.id)}
                 />
               </div>
             )}

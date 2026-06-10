@@ -10,7 +10,7 @@ import {
 import { keymap, EditorView } from "@codemirror/view";
 import { usePreferencesStore } from "@/modules/settings/preferences";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { EDITOR_THEME_EXT } from "./lib/themes";
+import { useEditorThemeExtension } from "./lib/useEditorTheme";
 import {
   forwardRef,
   useEffect,
@@ -73,11 +73,15 @@ export type EditorPaneHandle = {
 
 type Props = {
   path: string;
+  /** Tab is on screen — refocus when switching back from terminal/other tabs. */
+  visible?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: () => void;
   onClose?: () => void;
   onCursorChange?: (pos: EditorCursorPosition | null) => void;
   onFormat?: () => void;
+  /** Fired once when the buffer is loaded and CodeMirror is mounted. */
+  onReady?: () => void;
 };
 
 function formatBytes(n: number): string {
@@ -88,14 +92,26 @@ function formatBytes(n: number): string {
 
 export const EditorPane = forwardRef<EditorPaneHandle, Props>(
   function EditorPane(
-    { path, onDirtyChange, onSaved, onClose, onCursorChange, onFormat },
+    {
+      path,
+      visible = true,
+      onDirtyChange,
+      onSaved,
+      onClose,
+      onCursorChange,
+      onFormat,
+      onReady,
+    },
     ref,
   ) {
-    const { doc, onChange, save, reload } = useDocument({ path, onDirtyChange });
+    const { doc, contentKey, onChange, save, reload } = useDocument({
+      path,
+      onDirtyChange,
+    });
     const reloadRef = useRef(reload);
     reloadRef.current = reload;
     const cmRef = useRef<ReactCodeMirrorRef>(null);
-    const editorThemeId = usePreferencesStore((s) => s.editorTheme);
+    const { themeExt } = useEditorThemeExtension();
     const vimMode = usePreferencesStore((s) => s.vimMode);
     const editorWordWrap = usePreferencesStore((s) => s.editorWordWrap);
     const languageRef = useRef<string | null>(null);
@@ -128,7 +144,6 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
         unsubPrefs();
       };
     }, []);
-    const themeExt = EDITOR_THEME_EXT[editorThemeId] ?? EDITOR_THEME_EXT.atomone;
 
     // Stabilize save + onSaved via refs so the extensions array never changes
     // identity — a new identity makes @uiw/react-codemirror reconfigure the
@@ -147,6 +162,8 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
     onCursorChangeRef.current = onCursorChange;
     const onFormatRef = useRef(onFormat);
     onFormatRef.current = onFormat;
+    const onReadyRef = useRef(onReady);
+    onReadyRef.current = onReady;
     const formatEnabled = buildFormatCommand(path) !== null;
 
     const searchQueryRef = useRef("");
@@ -277,6 +294,36 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       };
     }, [path, doc.status]);
 
+    useEffect(() => {
+      if (doc.status !== "ready") return;
+      let cancelled = false;
+      const notify = () => {
+        if (cancelled || !cmRef.current?.view) return;
+        onReadyRef.current?.();
+      };
+      const id = requestAnimationFrame(notify);
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(id);
+      };
+    }, [doc.status, path, contentKey]);
+
+    useEffect(() => {
+      if (!visible || doc.status !== "ready") return;
+      let cancelled = false;
+      const id = requestAnimationFrame(() => {
+        if (cancelled) return;
+        const view = cmRef.current?.view;
+        if (!view) return;
+        view.focus();
+        onReadyRef.current?.();
+      });
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(id);
+      };
+    }, [visible, doc.status, path, contentKey]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -333,7 +380,9 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
           });
         },
         focus: () => {
-          cmRef.current?.view?.focus();
+          const view = cmRef.current?.view;
+          if (!view || view.hasFocus) return;
+          view.focus();
         },
         getSelection: () => {
           const view = cmRef.current?.view;
@@ -485,6 +534,7 @@ export const EditorPane = forwardRef<EditorPaneHandle, Props>(
       >
         <div className="flex h-full min-h-0 flex-col">
           <CodeMirror
+            key={`${path}\0${contentKey}`}
             ref={cmRef}
             value={doc.content}
             onChange={onChange}

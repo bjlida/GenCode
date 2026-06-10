@@ -16,7 +16,6 @@ import {
   AiBrain02Icon,
   AppleIcon,
   ArrowDown01Icon,
-  ArrowUpIcon,
   Attachment01Icon,
   BrainIcon,
   Camera01Icon,
@@ -82,6 +81,65 @@ const PROVIDER_ICON = {
   ollama: ServerStack01Icon,
 } as const satisfies Record<ProviderId, typeof ChatGptIcon>;
 
+/** Toolbar icons beside send — darker than default muted-foreground. */
+const COMPOSER_TOOL_ICON =
+  "text-foreground/72 hover:text-foreground dark:text-foreground/78";
+
+function CursorArrowUpIcon({
+  className,
+  strokeWidth = 1.75,
+}: {
+  className?: string;
+  strokeWidth?: number;
+}) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      className={className}
+      aria-hidden
+    >
+      <path
+        d="M8 13V4.25M8 4.25L4.5 8M8 4.25L11.5 8"
+        stroke="currentColor"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CursorSendButton({
+  disabled,
+  onClick,
+}: {
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label="发送"
+      title="发送 (Enter)"
+      className={cn(
+        "inline-flex size-6 shrink-0 items-center justify-center rounded-full transition-colors",
+        "outline-none focus-visible:ring-2 focus-visible:ring-ring/25",
+        disabled
+          ? "cursor-not-allowed bg-neutral-300 text-neutral-600 dark:bg-neutral-600 dark:text-neutral-200"
+          : "bg-[#3c3c3c] text-white hover:bg-[#484848] active:bg-[#353535]",
+      )}
+    >
+      <CursorArrowUpIcon
+        className="size-4"
+        strokeWidth={2}
+      />
+    </button>
+  );
+}
+
 export function AiOpenButton({ onOpen }: { onOpen: () => void }) {
   return (
     <motion.button
@@ -114,7 +172,7 @@ export function AiComposerActions({ composer = false }: { composer?: boolean }) 
         ? "正在转录…"
         : "语音输入");
 
-  const btnClass = composer ? "size-7 rounded-full" : undefined;
+  const btnClass = composer ? "size-6 rounded-full" : undefined;
 
   return (
     <div className={cn("flex items-center", composer ? "gap-1" : "gap-0.5")}>
@@ -138,10 +196,7 @@ export function AiComposerActions({ composer = false }: { composer?: boolean }) 
             size="icon"
             title="附加文件或截图"
             disabled={c.isBusy}
-            className={cn(
-              "size-6 rounded-md text-muted-foreground hover:text-foreground",
-              btnClass,
-            )}
+            className={cn("size-6 rounded-md", COMPOSER_TOOL_ICON, btnClass)}
           >
             <HugeiconsIcon icon={Attachment01Icon} size={13} strokeWidth={2} />
           </Button>
@@ -184,7 +239,7 @@ export function AiComposerActions({ composer = false }: { composer?: boolean }) 
           }}
           disabled={c.isBusy || c.voice.transcribing}
           className={cn(
-            composer && "size-7 rounded-full",
+            composer && "size-6 rounded-full",
             !c.voice.ready && "opacity-50",
             c.voice.recording &&
               "bg-destructive/10 text-destructive hover:bg-destructive/15",
@@ -204,30 +259,16 @@ export function AiComposerActions({ composer = false }: { composer?: boolean }) 
         <Button
           type="button"
           size="icon"
-          variant={composer ? "outline" : "ghost"}
+          variant="ghost"
           onClick={c.stop}
-          className={cn(composer ? "size-7 rounded-full" : "size-6")}
+          className={cn("size-6 rounded-full", COMPOSER_TOOL_ICON)}
           aria-label="停止"
           title="停止"
         >
           <HugeiconsIcon icon={StopCircleIcon} size={13} strokeWidth={1.75} />
         </Button>
       ) : (
-        <Button
-          type="button"
-          size="icon"
-          onClick={c.submit}
-          disabled={!c.canSend}
-          className={cn(
-            composer
-              ? "size-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-              : "h-5.5 w-7.5 ml-1",
-          )}
-          aria-label="发送"
-          title="发送 (Enter)"
-        >
-          <HugeiconsIcon icon={ArrowUpIcon} size={13} strokeWidth={1.75} />
-        </Button>
+        <CursorSendButton disabled={!c.canSend} onClick={c.submit} />
       )}
     </div>
   );
@@ -726,10 +767,7 @@ function IconBtn({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={cn(
-        "size-6 rounded-md text-muted-foreground hover:text-foreground",
-        className,
-      )}
+      className={cn("size-6 rounded-md", COMPOSER_TOOL_ICON, className)}
     >
       {children}
     </Button>

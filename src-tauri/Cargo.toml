@@ -1,6 +1,6 @@
 [package]
 name = "gencode"
-version = "0.8.0"
+version = "1.0.0"
 description = "GenCode/灵码 ADE — AI-native developer terminal emulator (forked from Terax)"
 authors = ["crynta", "bjlida"]
 license = "Apache-2.0"
@@ -72,6 +72,7 @@ windows-sys = { version = "0.59", features = [
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-window-state = "2"
 

@@ -163,7 +163,7 @@ export function GeneralSection() {
         <SettingsCard title="编辑器">
           <SettingRow
             title="Vim 模式"
-            description="在代码编辑器中启用 Vim 快捷键。"
+            description="启用 Vim 按键模式。开启后编辑器以普通模式启动，直接打字不会输入文字（需按 i 进入插入模式）；不熟悉 Vim 请保持关闭。"
           >
             <Switch
               checked={vimMode}

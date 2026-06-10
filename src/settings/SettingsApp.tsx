@@ -69,8 +69,8 @@ export function SettingsApp() {
         {USE_CUSTOM_WINDOW_CONTROLS && <WindowControls closeOnly />}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto bg-background px-6 pt-5 pb-6">
-        <div className="mx-auto w-full max-w-140 rounded-xl border border-border/60 bg-card px-5 py-4 shadow-sm">
+      <main className="min-h-0 flex-1 overflow-y-auto bg-background px-6 py-5 sm:px-10 md:px-16 lg:px-24 xl:px-32">
+        <div className="mx-auto w-full max-w-3xl rounded-xl border border-border/60 bg-card px-5 py-4 shadow-sm xl:max-w-4xl">
           {ActiveSection && <ActiveSection />}
         </div>
       </main>

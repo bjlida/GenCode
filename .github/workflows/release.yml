@@ -79,6 +79,9 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      - name: Verify installers contain no embedded API keys
+        run: node scripts/verify-no-secrets-in-artifacts.mjs dist src-tauri/target/release/bundle
+
       - name: Build portable (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
@@ -86,7 +89,12 @@ jobs:
           $exe = "src-tauri/target/release/gencode.exe"
           if (Test-Path $exe) {
             $dest = "GenCode_${{ github.ref_name }}_x64-portable.zip"
-            Compress-Archive -Path $exe -DestinationPath $dest
+            $staging = "portable-staging"
+            New-Item -ItemType Directory -Force -Path $staging | Out-Null
+            Copy-Item $exe "$staging/gencode.exe"
+            Copy-Item scripts/register-context-menu.ps1 "$staging/"
+            Copy-Item scripts/unregister-context-menu.ps1 "$staging/"
+            Compress-Archive -Path "$staging/*" -DestinationPath $dest
             Write-Output "portable_zip=$dest" >> $env:GITHUB_ENV
             Write-Output "portable=yes" >> $env:GITHUB_ENV
           }

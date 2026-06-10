@@ -22,6 +22,8 @@ type Options = {
 export function useDocument({ path, onDirtyChange }: Options) {
   const [doc, setDoc] = useState<DocumentState>({ status: "loading" });
   const [dirty, setDirty] = useState(false);
+  /** Bumped on load/reload so CodeMirror remounts with disk content. */
+  const [contentKey, setContentKey] = useState(0);
 
   // Track the saved buffer so we can detect changes cheaply.
   const savedRef = useRef<string>("");
@@ -57,6 +59,7 @@ export function useDocument({ path, onDirtyChange }: Options) {
             content: res.content,
             size: res.size,
           });
+          setContentKey((k) => k + 1);
         } else if (res.kind === "binary") {
           setDoc({ status: "binary", size: res.size });
         } else if (res.kind === "toolarge") {
@@ -91,6 +94,7 @@ export function useDocument({ path, onDirtyChange }: Options) {
           bufferRef.current = res.content;
           setDirty(false);
           setDoc({ status: "ready", content: res.content, size: res.size });
+          setContentKey((k) => k + 1);
         } else if (res.kind === "binary") {
           setDoc({ status: "binary", size: res.size });
         } else if (res.kind === "toolarge") {
@@ -103,9 +107,6 @@ export function useDocument({ path, onDirtyChange }: Options) {
 
   const onChange = useCallback((next: string) => {
     bufferRef.current = next;
-    setDoc((current) =>
-      current.status === "ready" ? { ...current, content: next } : current,
-    );
     setDirty(next !== savedRef.current);
   }, []);
 
@@ -122,5 +123,5 @@ export function useDocument({ path, onDirtyChange }: Options) {
     setDirty(false);
   }, [path, dirty]);
 
-  return { doc, dirty, onChange, save, reload };
+  return { doc, dirty, contentKey, onChange, save, reload };
 }

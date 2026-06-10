@@ -34,6 +34,10 @@ type Callbacks = {
 type Session = {
   pty: PtySession | null;
   ptyOpening: boolean;
+  // Input written before pty_open resolves (e.g. xterm's automatic reply to
+  // ConPTY's ESC[6n cursor probe, which arrives on the data channel before
+  // the open invoke returns). Dropping it deadlocks pwsh at startup.
+  pendingInput: string[];
   initialCwd: string | undefined;
   lastCwd: string | null;
   pendingExit: number | null;
@@ -76,6 +80,10 @@ function markSessionReady(leafId: number): void {
   }
 }
 
+export function isSessionReady(leafId: number): boolean {
+  return readyLeaves.has(leafId);
+}
+
 export function whenSessionReady(leafId: number, timeoutMs = 4000): Promise<void> {
   if (readyLeaves.has(leafId)) return Promise.resolve();
   return new Promise((resolve) => {
@@ -91,10 +99,25 @@ export function whenSessionReady(leafId: number, timeoutMs = 4000): Promise<void
   });
 }
 
+function writePtyInput(s: Session, data: string): void {
+  if (s.pty) {
+    void s.pty.write(data);
+    return;
+  }
+  if (s.shellExited || s.disposed) return;
+  s.pendingInput.push(data);
+}
+
+function flushPendingInput(s: Session, pty: PtySession): void {
+  if (s.pendingInput.length === 0) return;
+  const queued = s.pendingInput.splice(0);
+  for (const data of queued) void pty.write(data);
+}
+
 export function writeToSession(leafId: number, data: string): boolean {
   const s = sessions.get(leafId);
-  if (!s || !s.pty) return false;
-  void s.pty.write(data);
+  if (!s || (!s.pty && !s.ptyOpening)) return false;
+  writePtyInput(s, data);
   return true;
 }
 
@@ -111,7 +134,7 @@ configureRendererPool({
     if (!s) return null;
     return {
       writeToPty: (data) => {
-        s.pty?.write(data);
+        writePtyInput(s, data);
       },
       resizePty: (cols, rows) => {
         s.cols = cols;
@@ -149,6 +172,7 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
   const session: Session = {
     pty: null,
     ptyOpening: false,
+    pendingInput: [],
     initialCwd,
     lastCwd: null,
     pendingExit: null,
@@ -180,7 +204,6 @@ function ensureSession(leafId: number, initialCwd?: string): Session {
     }
   })();
 
-  startPtyIfNeeded(leafId, session);
   return session;
 }
 
@@ -195,7 +218,20 @@ function startPtyIfNeeded(leafId: number, s: Session): void {
         return;
       }
       s.pty = pty;
-      if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
+      flushPendingInput(s, pty);
+      const cols =
+        s.cols > 0
+          ? s.cols
+          : (getSlotForLeaf(leafId)?.term.cols ?? 0);
+      const rows =
+        s.rows > 0
+          ? s.rows
+          : (getSlotForLeaf(leafId)?.term.rows ?? 0);
+      if (cols > 0 && rows > 0) {
+        s.cols = cols;
+        s.rows = rows;
+        void pty.resize(cols, rows);
+      }
     })
     .catch((e) => {
       s.ptyOpening = false;
@@ -203,9 +239,14 @@ function startPtyIfNeeded(leafId: number, s: Session): void {
     });
 }
 
+const ptyOutBytesByLeaf = new Map<number, number>();
+
 function deliverPtyBytes(leafId: number, bytes: Uint8Array): void {
   const s = sessions.get(leafId);
   if (!s) return;
+  const outTotal = (ptyOutBytesByLeaf.get(leafId) ?? 0) + bytes.length;
+  ptyOutBytesByLeaf.set(leafId, outTotal);
+  if (outTotal >= 64) markSessionReady(leafId);
   const slot = getSlotForLeaf(leafId);
   if (slot) slot.term.write(bytes);
   else s.dormantRing.push(bytes);
@@ -226,6 +267,7 @@ async function openPtyForSession(
       onExit: (code) => {
         s.shellExited = true;
         s.pty = null;
+        s.pendingInput = [];
         const slot = getSlotForLeaf(leafId);
         if (slot) slot.term.options.disableStdin = true;
         if (s.callbacks.onExit) s.callbacks.onExit(code);
@@ -240,12 +282,13 @@ function bindLeafToSlot(leafId: number, s: Session): void {
   if (!s.container) return;
   const altScreen = s.altScreenAtRelease;
   s.altScreenAtRelease = false;
-  acquireSlot({
+  const slot = acquireSlot({
     leafId,
     container: s.container,
     snapshot: s.snapshot,
     altScreen,
     drainRing: (write) => s.dormantRing.drain(write),
+    pendingRingBytes: s.dormantRing.byteLength(),
     shellExited: s.shellExited,
     searchQuery: s.searchQuery,
     cols: s.cols,
@@ -271,6 +314,8 @@ function bindLeafToSlot(leafId: number, s: Session): void {
     },
     onSearchReady: (addon) => s.callbacks.onSearchReady?.(addon),
   });
+  if (slot.lastCols > 0) s.cols = slot.lastCols;
+  if (slot.lastRows > 0) s.rows = slot.lastRows;
   s.snapshot = null;
   s.hasSlot = true;
   if (s.lastCwd !== null) s.callbacks.onCwd?.(s.lastCwd);
@@ -279,6 +324,7 @@ function bindLeafToSlot(leafId: number, s: Session): void {
     s.pendingExit = null;
     s.callbacks.onExit?.(code);
   }
+  startPtyIfNeeded(leafId, s);
 }
 
 function unbindLeafFromSlot(leafId: number, s: Session): void {
@@ -302,9 +348,6 @@ function attachSession(
   if (!s || s.disposed) return;
   s.callbacks = callbacks;
   s.container = container;
-
-  if (s.visibleNow) bindLeafToSlot(leafId, s);
-  startPtyIfNeeded(leafId, s);
 }
 
 function detachSession(leafId: number): void {
@@ -323,6 +366,7 @@ export async function respawnSession(
   if (!s || s.disposed) return;
   s.pty?.close();
   s.pty = null;
+  s.pendingInput = [];
   s.snapshot = null;
   s.dormantRing = new DormantRing();
   s.shellExited = false;
@@ -351,6 +395,7 @@ export async function respawnSession(
     return;
   }
   s.pty = pty;
+  flushPendingInput(s, pty);
   if (s.cols > 0 && s.rows > 0) pty.resize(s.cols, s.rows);
 }
 
@@ -364,6 +409,7 @@ export function disposeSession(leafId: number): void {
   s.pty = null;
   sessions.delete(leafId);
   readyLeaves.delete(leafId);
+  ptyOutBytesByLeaf.delete(leafId);
   const waiters = readyWaiters.get(leafId);
   if (waiters) {
     readyWaiters.delete(leafId);
@@ -420,7 +466,7 @@ export function useTerminalSession({
         onExit: (c) => cbRef.current.onExit?.(c),
         onCwd: (c) => cbRef.current.onCwd?.(c),
       });
-      if (s.visibleNow && s.focusedNow) focusSlot(leafId);
+      if (s.visibleNow && !s.hasSlot) bindLeafToSlot(leafId, s);
     };
 
     void s.ready.then(tryAttach);
@@ -430,6 +476,7 @@ export function useTerminalSession({
       cancelled = true;
       detachSession(leafId);
     };
+    // Do not include visible/focused — rebinding on focus change clear()+reset() xterm.
   }, [leafId, container]);
 
   const fontSize = usePreferencesStore((p) => p.terminalFontSize);
@@ -480,7 +527,10 @@ export function useTerminalSession({
   }, [leafId, visible, focused]);
 
   const write = useCallback(
-    (data: string) => sessions.get(leafId)?.pty?.write(data),
+    (data: string) => {
+      const s = sessions.get(leafId);
+      if (s) writePtyInput(s, data);
+    },
     [leafId],
   );
 

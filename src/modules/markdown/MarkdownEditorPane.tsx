@@ -19,6 +19,7 @@ type Props = {
   onClose?: () => void;
   onCursorChange?: (pos: EditorCursorPosition | null) => void;
   onFormat?: () => void;
+  onReady?: () => void;
 };
 
 function ViewToggle({
@@ -62,7 +63,18 @@ function ViewToggle({
 
 export const MarkdownEditorPane = forwardRef<EditorPaneHandle, Props>(
   function MarkdownEditorPane(
-    { path, viewHint, viewHintSeq, visible, onDirtyChange, onSaved, onClose, onCursorChange, onFormat },
+    {
+      path,
+      viewHint,
+      viewHintSeq,
+      visible,
+      onDirtyChange,
+      onSaved,
+      onClose,
+      onCursorChange,
+      onFormat,
+      onReady,
+    },
     ref,
   ) {
     const editorRef = useRef<EditorPaneHandle>(null);
@@ -134,6 +146,9 @@ export const MarkdownEditorPane = forwardRef<EditorPaneHandle, Props>(
               onClose={onClose}
               onCursorChange={onCursorChange}
               onFormat={onFormat}
+              onReady={
+                visible && viewMode === "source" ? onReady : undefined
+              }
             />
           </div>
           <div
