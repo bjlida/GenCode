@@ -105,16 +105,6 @@ pub fn spawn(
     on_exit: Channel<i32>,
 ) -> Result<(Arc<Session>, PtySize), String> {
     let cmd = shell_init::build_command(cwd, workspace)?;
-    let spawn_argv: Vec<String> = cmd
-        .get_argv()
-        .into_iter()
-        .map(|a| a.to_string_lossy().into_owned())
-        .collect();
-    let shell_exe = spawn_argv.first().map(|s| s.as_str()).unwrap_or("");
-    let shell_lower = shell_exe.to_ascii_lowercase();
-    let is_pwsh = shell_lower.ends_with("pwsh.exe");
-    let ps5_plain = shell_lower.ends_with("powershell.exe")
-        && !spawn_argv.iter().any(|a| a == "-File" || a.starts_with("-Command"));
     spawn_inner(id, app, cols, rows, cmd, on_data, on_exit)
 }
 
@@ -292,7 +282,6 @@ fn spawn_inner(
     let on_data_flush = on_data.clone();
     let pending_f = pending.clone();
     let done_f = done.clone();
-    let total_out_flush = total_out.clone();
     let flusher_thread = thread::Builder::new()
         .name("gencode-pty-flusher".into())
         .spawn(move || {

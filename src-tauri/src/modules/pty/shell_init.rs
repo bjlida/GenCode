@@ -82,6 +82,7 @@ fn ensure_utf8_locale(cmd: &mut CommandBuilder) {
     cmd.env("LANG", fallback);
 }
 
+#[cfg(windows)]
 fn apply_chinese_locale(cmd: &mut CommandBuilder) {
     const LOCALE: &str = "zh_CN.UTF-8";
     cmd.env("LANG", LOCALE);
