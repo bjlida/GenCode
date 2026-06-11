@@ -1,71 +1,71 @@
 # GenCode User Guide (English)
 
-**GenCode / 灵码ADE** is an AI-native terminal and lightweight development workspace. This guide describes product features as of **v0.8.0**.
+**GenCode / 灵码ADE** is an AI-native terminal and lightweight development workspace. This guide describes product features as of **v1.0.0**.
 
 ---
 
 ## 1. Overview
 
-GenCode combines:
+GenCode combines the following in a single window:
 
-- A **native PTY terminal** (zsh, bash, PowerShell, fish, cmd)
-- An **integrated code editor** (CodeMirror 6)
-- **File explorer** and **Git** source control
-- A **right-side AI assistant** with tool approval and multi-model support
+- **Native PTY terminal** (zsh, bash, PowerShell, fish, cmd)
+- **Integrated code editor** (CodeMirror 6)
+- **File explorer** and **Git source control**
+- **Right-side AI assistant** (tool approval, multi-model BYOK)
 - **Claude Code** integration (install, terminal, MCP, extension skills)
 
-Design goals: terminal-first workflow, ~7–8 MB binary, BYOK (bring your own API keys), keys in the OS keychain, no telemetry.
+Design goals: terminal-first, ~7–8 MB binary, BYOK (bring your own API keys), keys in the OS keychain only, no telemetry.
 
 ---
 
 ## 2. First launch
 
-1. Install from [GitHub Releases](https://github.com/bjlida/GenCode/releases) (Windows NSIS or portable zip, macOS DMG, Linux deb/AppImage/rpm).
-2. On first start the **file explorer is empty** — click **Open project folder** and choose your repo.
-3. On later launches GenCode **restores the last opened project**.
+1. Install from [GitHub Releases](https://github.com/bjlida/GenCode/releases) (Windows NSIS installer or portable zip, macOS DMG, Linux deb/AppImage/rpm).
+2. On **first start** the file explorer is empty — click **Open project folder** to choose a repo.
+3. On **later launches** GenCode automatically restores the last opened project directory.
 4. Configure AI: **Settings → Models** (`Ctrl+,`) — pick a provider and paste an API key.
-5. Optional: **Settings → Claude Code** — install embedded Node.js + Claude Code CLI (mirrors auto-fallback in China).
+5. Optional: **Settings → Claude Code** — install embedded Node.js + Claude Code CLI (mirrors auto-selected in China).
 
 ---
 
 ## 3. Workspace layout
 
-Cursor-style **three-pane** layout:
+Cursor-style **three-pane** workspace:
 
 | Area | Contents |
 |---|---|
 | **Left** | File explorer or Source Control (`Ctrl+B` toggles sidebar) |
-| **Center** | Tabs: terminal, editor, preview, Markdown, diffs, Git history |
-| **Right** | AI assistant panel (`Ctrl+I`, draggable width 320–480px, persisted) |
+| **Center** | Tabs: terminal, editor, preview, Markdown, diffs, Git history, etc. |
+| **Right** | AI assistant panel (`Ctrl+I`, draggable width 380–680px, persisted, default ~460px) |
 
 **Header**: logo, tabs, search, split menu, settings.
 
-**Status bar** (bottom right, important):
+**Status bar (bottom right)** — two separate AI entry points:
 
 | Control | Action |
 |---|---|
-| **CC icon** | **New Claude terminal** — opens a new tab and runs `claude` (or Settings if not installed) |
-| **Open AI assistant** + `Ctrl+I` | Opens/closes the **right AI panel** (not Claude Code) |
-| Agent status pill | Jumps to AI panel when an agent run is active |
+| **CC icon** | **New Claude terminal** — always opens a new tab and runs `claude` (redirects to Settings if not installed) |
+| **Open AI assistant** + `Ctrl+I` | Toggles the **right AI panel** only — not Claude Code |
+| Agent status pill | Visible when an agent is running; click to jump to AI panel |
 
-These two AI entry points are **intentionally separate**.
+These two entry points are **independent** — do not confuse them.
 
 ---
 
 ## 4. Terminal
 
-- **WebGL** rendering, multiple tabs, panes stay alive when hidden
-- **Split**: header grid menu — split right / split down (or shortcuts in Settings)
-- **Search** in active terminal tab (header search when terminal focused)
+- **WebGL** rendering, multiple tabs; PTY continues streaming in the background when tabs are hidden
+- **Split panes**: header grid menu — split right / split down (shortcuts configurable in Settings)
+- **Search**: available via header search when a terminal tab is active
 - **Shell integration**: cwd tracking (OSC 7), prompt boundaries (OSC 133)
-- **Private tab**: AI cannot read buffer context (incognito badge on status bar)
-- **WSL** as a workspace environment (workspace selector on status bar)
-- Brand welcome banner once per shell session
+- **Private terminal tab**: AI cannot read the buffer (incognito badge on status bar)
+- **WSL** workspace environment (workspace selector on status bar)
+- GenCode brand welcome banner shown once per shell session
 
 **Tips**
 
-- Use `\r` (CR) for Enter in programmatic PTY writes
-- If you only see a cursor after layout changes, open a **new terminal tab** (WebGL repaint fix in v0.8.0)
+- Use `\r` (CR) for Enter in programmatic PTY writes, not `\n`
+- If only a cursor appears after a layout change, open a **new terminal tab**
 
 ---
 
@@ -75,32 +75,32 @@ Open with **`Ctrl+I`** or status bar **Open AI assistant**.
 
 ### 5.1 Models
 
-BYOK providers include OpenAI, Anthropic, Google, xAI, Cerebras, Groq, DeepSeek, Mistral, OpenRouter, Qwen, Zhipu, Moonshot, OpenAI-compatible endpoints, and local **LM Studio / MLX / Ollama**.
+Supported providers: OpenAI, Anthropic, Google, xAI, Cerebras, Groq, DeepSeek, Mistral, OpenRouter, Qwen, Zhipu, Moonshot, OpenAI-compatible custom endpoints, and local **LM Studio / MLX / Ollama**.
 
 Configure under **Settings → Models**. Keys never touch disk (OS keychain).
 
-### 5.2 Composer
+### 5.2 Composer input
 
-- Multi-line input, send with **Enter** (see Settings for binding)
-- **Attachments** menu: attach files, paste screenshot from clipboard, **capture screen** (needs a vision-capable model)
-- **Voice input** when configured (Settings → General / voice section)
-- Tool calls that need approval show an **approval card** in the chat stream
+- Multi-line input; **Enter** to send (binding configurable in Settings)
+- **Attachments** menu: attach files, paste clipboard screenshot, **capture screen** (requires vision-capable model)
+- **Voice input** (configure in Settings first)
+- Tool calls requiring approval show an **approval card** inline in the conversation
 
 ### 5.3 Agents and skills
 
 - **Settings → Agent**: 15 built-in presets, custom agents, **snippets**, custom instruction templates
-- Slash commands in chat (see in-app list)
+- In-chat **slash commands**
 - **Plan mode** and diff review for proposed edits
-- **Sub-agents** for explore, review, security, etc.
-- Project memory via `GENCODE.md` in the workspace
+- **Sub-agents** (explore, review, security, general)
+- Project memory via `GENCODE.md` in the workspace root
 
 ### 5.4 Selection ask
 
-In the editor, select text and press **`Ctrl+L`** — a pill appears to send the selection to the AI panel.
+Select text in the editor and press **`Ctrl+L`** — an "Ask 灵码ADE" prompt appears to the right of the code area.
 
-### 5.5 Managed Claude from AI tools
+### 5.5 Claude launched via AI tool
 
-When the AI agent uses a managed-agent tool, GenCode can spawn a **dedicated terminal tab** running `claude` with your prompt (separate from the status bar CC button).
+When the agent uses a managed-agent tool it can automatically **open a new terminal tab** and run `claude` with a prompt (different from the status bar CC button behavior).
 
 ---
 
@@ -108,17 +108,19 @@ When the AI agent uses a managed-agent tool, GenCode can spawn a **dedicated ter
 
 ### 6.1 Status bar launcher
 
-Click the **CC icon** on the status bar to **always create a new terminal tab** named `claude` and run the `claude` CLI. If Claude Code is not installed, you are sent to **Settings → Claude Code**.
+Click the **CC icon** to **always create a new** terminal tab named `claude` and run the CLI. If not installed, you are redirected to **Settings → Claude Code**.
 
 ### 6.2 Manual use
 
-In any normal terminal tab, run `claude` after installation. GenCode applies **Chinese locale** (`language: chinese`, `zh_CN.UTF-8`) via `~/.claude/settings.json` when possible.
+After installation, run `claude` in any normal terminal tab. Each time GenCode launches claude (via status bar or AI tool), it **re-merges the Chinese locale** (`language: chinese`, `zh_CN.UTF-8`) into `~/.claude/settings.json` to prevent external proxy manager tools from overwriting and stripping the language setting.
+
+> **Note**: `language: chinese` controls the **AI reply language** only — it does not affect the CLI UI text (the CLI has no built-in i18n).
 
 ### 6.3 Settings → Claude Code
 
-- Install / update Node.js and Claude Code CLI (mirror fallback)
-- **MCP servers** CRUD (writes `~/.gencode/claude-config/.mcp.json`)
-- Version check and one-click upgrade
+- Install / update Node.js and Claude Code CLI
+- **MCP server** management (writes `~/.gencode/claude-config/.mcp.json`)
+- Version detection and one-click upgrade
 
 ### 6.4 Settings → Claude skills
 
@@ -126,25 +128,26 @@ Search and install extension skills from GitHub / GitLab / Gitee.
 
 ### 6.5 Command reference
 
-**`Ctrl+Shift+?`** opens a Chinese command palette (60+ Claude Code commands).
+**`Ctrl+Shift+?`** opens a Chinese command palette with 60+ Claude Code commands.
 
 ### 6.6 Notifications
 
-Notification bell can surface Claude Code / agent events; enable Claude notifications from the bell menu when offered.
+The notification bell surfaces agent / Claude Code events. Enable Claude Code notifications from the bell menu when prompted.
 
 ---
 
 ## 7. Editor
 
-- Languages: TypeScript/JavaScript, Rust, Python, Go, C/C++/Java/C#, PHP, HTML/CSS, JSON, Markdown, and more
-- **Markdown**: toggle **Preview** / **Markdown** in the toolbar (live preview respects unsaved edits)
+- Multi-language: TS/JS, Rust, Python, Go, C/C++/Java/C#, PHP, HTML/CSS, JSON, Markdown, and more
+- **Markdown**: toggle **Preview** / **Markdown** in the toolbar (preview syncs unsaved content)
 - **AI inline autocomplete** (when configured)
-- **AI diff tabs**: accept/reject hunks from agent edits
+- **AI diff tab**: accept/reject hunks from agent edits
 - **Find/replace**: `Ctrl+H`
-- **Format document**: `Ctrl+Shift+Alt+F` or context menu **Format code** (Rust: `cargo fmt`; others: Prettier when available; saves first)
+- **Format document**: `Ctrl+Shift+Alt+F` or right-click **Format code** (Rust: `cargo fmt`; others: Prettier when available; saves the file first)
 - **Context menu**: undo, redo, cut, copy, paste, format
 - Vim mode, word wrap, line/column on status bar
-- Unsaved close: Save / Don't save / Cancel
+- Unsaved-close dialog: Save / Don't save / Cancel
+- **11 built-in themes**; **GenCode Dark** is the dark default (terminal-style palette: red keywords, yellow strings, green functions/properties, blue numbers, grey comments)
 
 ---
 
@@ -153,20 +156,20 @@ Notification bell can surface Claude Code / agent events; enable Claude notifica
 ### Explorer
 
 - Catppuccin file icons, fuzzy search `Ctrl+Shift+F`
-- Inline rename, context menu (open, reveal, copy path, attach to AI, etc.)
-- Clipboard cut/copy/paste for files where supported
+- Inline rename, right-click menu (open, reveal in Explorer, copy path, attach to AI, etc.)
+- Clipboard cut/copy/paste for files (platform-dependent)
 
 ### Source control
 
 - Stage, unstage, commit (`Ctrl+Enter` / `Cmd+Enter`), push
-- Aligned with **explorer project root** (open a folder containing `.git`)
-- Per-file diff tabs, Git history with commit graph
+- Aligned with the **explorer project root** (open a folder containing `.git`)
+- Per-file diff tabs, Git history panel with commit graph
 
 ---
 
 ## 9. Settings (`Ctrl+,`)
 
-In-app **overlay** (not a separate window). Sections:
+In-app **overlay** inside the main window (no separate settings window). Sections:
 
 | Tab | Purpose |
 |---|---|
@@ -174,32 +177,32 @@ In-app **overlay** (not a separate window). Sections:
 | Themes | App and editor themes, background image |
 | Shortcuts | Keybindings; `Ctrl+K` quick reference |
 | Models | API keys and default models |
-| Agent | Presets, custom agents, snippets, instructions |
+| Agent | Presets, custom agents, snippets, custom instructions |
 | Claude Code | Runtime install, MCP |
-| Claude skills | Extension skills from remotes |
-| About | Version, updates, links |
+| Claude skills | Extension skills from remote repos |
+| About | Version, check for updates, links |
 
 ---
 
 ## 10. Security and privacy
 
-- **Sandbox presets** (permissive / standard / strict) for AI file and shell tools — editable policy file under `~/.gencode/`
+- AI tool **sandbox presets** (permissive / standard / strict), policy file at `~/.gencode/`
 - **Private terminal tabs**: output excluded from AI context
-- **SSRF protection** on outbound AI HTTP from the Rust backend
-- Path deny lists and shell validation on the agent tool surface
+- Rust backend outbound HTTP has **SSRF protection** (DNS rebinding defense)
+- Agent tool path deny list and shell command validation
 - **No telemetry**, no account system
 
-See [SECURITY.md](../../SECURITY.md) to report issues.
+Report vulnerabilities via [SECURITY.md](../../SECURITY.md).
 
 ---
 
-## 11. Shortcuts (common)
+## 11. Common shortcuts
 
 | Shortcut | Action |
 |---|---|
 | `Ctrl+I` | Toggle right AI assistant panel |
 | `Ctrl+L` | Ask AI about editor selection |
-| `Ctrl+,` | Settings overlay |
+| `Ctrl+,` | Open Settings |
 | `Ctrl+Shift+?` | Claude Code command reference |
 | `Ctrl+B` | Toggle sidebar |
 | `Ctrl+T` | New terminal tab |
@@ -212,17 +215,19 @@ Full list: **Settings → Shortcuts**.
 
 ---
 
-## 12. v0.8.0 highlights
+## 12. v1.0.0 highlights
 
-- Cursor-style **three-pane** UI with right AI panel
-- **In-app settings** overlay; Agent page with snippets and custom instructions
-- Status bar **CC icon** vs **Open AI assistant** split
+- Cursor-style **three-pane** layout + right AI panel
+- **In-app settings** overlay; Agent page (snippets + custom instructions)
+- Status bar **CC icon** and **Open AI assistant** separated
 - Composer **attachments** (file, clipboard screenshot, screen capture)
 - Markdown **preview/source** toggle
-- Explorer empty first run; **last project** restore
-- Git panel fix when project root matches explorer
-- Terminal **WebGL** and **cwd re-attach** fixes
-- Windows **NSIS** + portable zip in CI; custom installer artwork
+- Explorer empty on first run; **last project** restored on relaunch
+- **GenCode Dark** editor theme (terminal color palette, dark default)
+- Fixed editor content invisible under dark theme
+- Claude Code: **re-merge Chinese locale on every launch** to prevent external proxy tools from stripping the language setting
+- Vim mode toggle description clarified in Settings
+- Windows CI: NSIS installer + portable zip with context-menu helper scripts
 
 ---
 
