@@ -634,7 +634,10 @@ mod auth_tests {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        p.push(format!("gencode-auth-{label}-{nanos}-{}", std::process::id()));
+        p.push(format!(
+            "gencode-auth-{label}-{nanos}-{}",
+            std::process::id()
+        ));
         fs::create_dir_all(&p).expect("create tempdir");
         fs::canonicalize(&p).expect("canonicalize tempdir")
     }

@@ -287,7 +287,12 @@ pub fn unstage(
         return Ok(());
     }
     let resolved = resolve_pathspecs(&repo_root.local_path, paths)?;
-    let mut reset_args: Vec<OsString> = vec!["reset".into(), "HEAD".into(), "--literal-pathspecs".into(), "--".into()];
+    let mut reset_args: Vec<OsString> = vec![
+        "reset".into(),
+        "HEAD".into(),
+        "--literal-pathspecs".into(),
+        "--".into(),
+    ];
     for p in &resolved {
         reset_args.push(p.clone().into());
     }
@@ -354,7 +359,12 @@ pub fn discard(
     }
 
     if !tracked.is_empty() {
-        let mut args: Vec<OsString> = vec!["restore".into(), "--worktree".into(), "--literal-pathspecs".into(), "--".into()];
+        let mut args: Vec<OsString> = vec![
+            "restore".into(),
+            "--worktree".into(),
+            "--literal-pathspecs".into(),
+            "--".into(),
+        ];
         for p in &tracked {
             args.push(p.clone().into());
         }
@@ -368,7 +378,13 @@ pub fn discard(
     }
 
     if !untracked.is_empty() {
-        let mut args: Vec<OsString> = vec!["clean".into(), "-f".into(), "-d".into(), "--literal-pathspecs".into(), "--".into()];
+        let mut args: Vec<OsString> = vec![
+            "clean".into(),
+            "-f".into(),
+            "-d".into(),
+            "--literal-pathspecs".into(),
+            "--".into(),
+        ];
         for p in &untracked {
             args.push(p.clone().into());
         }

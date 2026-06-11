@@ -77,7 +77,9 @@ struct ChildKillGuard {
 
 impl ChildKillGuard {
     fn new(killer: Box<dyn ChildKiller + Send + Sync>) -> Self {
-        Self { killer: Some(killer) }
+        Self {
+            killer: Some(killer),
+        }
     }
 
     fn disarm(&mut self) {
@@ -122,9 +124,7 @@ pub fn spawn_command(
 ) -> Result<(Arc<Session>, PtySize), String> {
     // Convert std::process::Command to portable_pty::CommandBuilder.
     let cmd: portable_pty::CommandBuilder = {
-        let mut c = portable_pty::CommandBuilder::new(
-            command.get_program(),
-        );
+        let mut c = portable_pty::CommandBuilder::new(command.get_program());
         for arg in command.get_args() {
             c.arg(arg);
         }
@@ -210,10 +210,8 @@ fn spawn_inner(
         master: Mutex::new(pair.master),
     });
 
-    let pending: Arc<(Mutex<Vec<u8>>, Condvar)> = Arc::new((
-        Mutex::new(Vec::with_capacity(READ_BUF)),
-        Condvar::new(),
-    ));
+    let pending: Arc<(Mutex<Vec<u8>>, Condvar)> =
+        Arc::new((Mutex::new(Vec::with_capacity(READ_BUF)), Condvar::new()));
     let done = Arc::new(AtomicBool::new(false));
     let total_out = Arc::new(AtomicU64::new(0));
     let spawn_at = Instant::now();

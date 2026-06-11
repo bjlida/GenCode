@@ -64,10 +64,7 @@ pub fn find_claude_code(
 // ── Status ──────────────────────────────────────────────────────────────────
 
 /// Check status of Claude Code (system + bundled + latest version from CDN).
-pub fn check_status(
-    app: &AppHandle,
-    preference: &detect::SourcePreference,
-) -> RuntimeStatus {
+pub fn check_status(app: &AppHandle, preference: &detect::SourcePreference) -> RuntimeStatus {
     let root = match runtime_root(app) {
         Ok(r) => r,
         Err(_) => {
@@ -86,7 +83,12 @@ pub fn check_status(
     let latest_version = detect::fetch_latest_version().ok();
 
     let (installed, version, source, binary_path) = match &active {
-        Ok(a) => (true, Some(a.version.clone()), a.source.clone(), Some(a.path.display().to_string())),
+        Ok(a) => (
+            true,
+            Some(a.version.clone()),
+            a.source.clone(),
+            Some(a.path.display().to_string()),
+        ),
         Err(_) => (false, None, detect::SourceType::NotFound, None),
     };
 

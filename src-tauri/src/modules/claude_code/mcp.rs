@@ -29,7 +29,11 @@ fn default_true() -> bool {
 /// See https://docs.anthropic.com/en/docs/claude-code/mcp
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct McpConfig {
-    #[serde(rename = "mcpServers", default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    #[serde(
+        rename = "mcpServers",
+        default,
+        skip_serializing_if = "std::collections::HashMap::is_empty"
+    )]
     pub mcp_servers: std::collections::HashMap<String, McpServerConfig>,
 }
 

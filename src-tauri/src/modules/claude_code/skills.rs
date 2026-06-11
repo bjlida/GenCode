@@ -74,10 +74,7 @@ fn parse_skill_md(content: &str) -> Option<SkillMeta> {
 fn list_installed() -> Result<Vec<InstalledSkill>, String> {
     let mut skills = Vec::new();
 
-    for (dir_result, managed) in [
-        (skills_dir(), true),
-        (claude_skills_dir(), false),
-    ] {
+    for (dir_result, managed) in [(skills_dir(), true), (claude_skills_dir(), false)] {
         let dir = match dir_result {
             Ok(d) => d,
             Err(_) => continue,
@@ -371,8 +368,7 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> Result<(), String> {
 
     // Canonicalize dest immediately after creation so the symlink-traversal
     // check below operates on the real path.
-    let dest_real = std::fs::canonicalize(dest)
-        .unwrap_or_else(|_| dest.to_path_buf());
+    let dest_real = std::fs::canonicalize(dest).unwrap_or_else(|_| dest.to_path_buf());
 
     for entry in std::fs::read_dir(src).map_err(|e| e.to_string())?.flatten() {
         let src_path = entry.path();
@@ -382,7 +378,10 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> Result<(), String> {
         // resolves within the target tree.
         if let Ok(canon) = dest_path.canonicalize() {
             if !canon.starts_with(&dest_real) {
-                log::warn!("skills: skipping path outside target: {}", src_path.display());
+                log::warn!(
+                    "skills: skipping path outside target: {}",
+                    src_path.display()
+                );
                 continue;
             }
         }
@@ -432,8 +431,7 @@ pub fn skills_remove(dir_name: String) -> Result<(), String> {
         // Defense-in-depth: canonicalize and verify the path still lands
         // inside the expected skills directory before removing it.
         let _ = verified_path_in_dir(&sk_dir, &dir_name)?;
-        std::fs::remove_dir_all(&dest)
-            .map_err(|e| format!("删除技能失败: {e}"))?;
+        std::fs::remove_dir_all(&dest).map_err(|e| format!("删除技能失败: {e}"))?;
         return Ok(());
     }
 
@@ -442,8 +440,7 @@ pub fn skills_remove(dir_name: String) -> Result<(), String> {
     let claude_dest = cc_dir.join(&dir_name);
     if claude_dest.exists() {
         let _ = verified_path_in_dir(&cc_dir, &dir_name)?;
-        std::fs::remove_dir_all(&claude_dest)
-            .map_err(|e| format!("删除技能失败: {e}"))?;
+        std::fs::remove_dir_all(&claude_dest).map_err(|e| format!("删除技能失败: {e}"))?;
         return Ok(());
     }
 

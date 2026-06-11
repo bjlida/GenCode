@@ -30,10 +30,7 @@ pub fn resolve_api_key(app: &AppHandle) -> Result<Option<String>, String> {
     #[cfg(target_os = "linux")]
     {
         // On Linux, read from the file store directly.
-        let dir = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|e| e.to_string())?;
+        let dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
         let path = dir.join("secrets.json");
         if !path.exists() {
             return Ok(None);
@@ -66,7 +63,10 @@ pub fn build_env(
 
     // Tell Claude Code it's running inside GenCode.
     env.insert("GENCODE_TERMINAL".to_string(), "1".to_string());
-    env.insert("GENCODE_WORKSPACE_ROOT".to_string(), workspace_root.to_string());
+    env.insert(
+        "GENCODE_WORKSPACE_ROOT".to_string(),
+        workspace_root.to_string(),
+    );
 
     // Chinese locale for Claude Code CLI UI and subprocess output.
     env.insert("LANG".to_string(), CHINESE_LOCALE.to_string());

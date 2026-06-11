@@ -137,8 +137,8 @@ fn fs_delete_impl(
             // Authorize using the parent directory so we don't canonicalize
             // through the symlink to the target.
             if let Some(parent) = resolved.parent() {
-                let canon_parent = std::fs::canonicalize(parent)
-                    .map_err(|e| format!("无法解析父目录: {e}"))?;
+                let canon_parent =
+                    std::fs::canonicalize(parent).map_err(|e| format!("无法解析父目录: {e}"))?;
                 if !registry.is_authorized(&canon_parent) {
                     return Err(format!(
                         "path outside workspace: {}",
@@ -191,7 +191,10 @@ fn copy_tree(src: &Path, dest: &Path) -> Result<(), String> {
 
         if let Ok(canon) = dest_path.canonicalize() {
             if !canon.starts_with(&dest_real) {
-                log::warn!("fs_copy: skipping path outside target: {}", src_path.display());
+                log::warn!(
+                    "fs_copy: skipping path outside target: {}",
+                    src_path.display()
+                );
                 continue;
             }
         }
@@ -312,13 +315,15 @@ mod tests {
         assert_eq!(std::fs::read(&to).unwrap(), b"payload");
 
         // Missing source is reported, not silently ignored.
-        let err = fs_rename_impl(&s(from), &s(dir.path().join("c.txt")), &workspace, &reg).unwrap_err();
+        let err =
+            fs_rename_impl(&s(from), &s(dir.path().join("c.txt")), &workspace, &reg).unwrap_err();
         assert!(err.contains("not found"), "got: {err}");
 
         // Refusing to overwrite an existing target is the data-loss guard.
         let occupied = dir.path().join("keep.txt");
         std::fs::write(&occupied, b"keep").unwrap();
-        let err = fs_rename_impl(&s(to.clone()), &s(occupied.clone()), &workspace, &reg).unwrap_err();
+        let err =
+            fs_rename_impl(&s(to.clone()), &s(occupied.clone()), &workspace, &reg).unwrap_err();
         assert!(err.contains("already exists"), "got: {err}");
         assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
         assert!(to.exists());
@@ -359,17 +364,9 @@ mod tests {
         std::fs::create_dir_all(src_dir.join("inner")).unwrap();
         std::fs::write(src_dir.join("inner/x.txt"), b"x").unwrap();
         let dest_dir = dir.path().join("tree-copy");
-        fs_copy_impl(
-            &s(src_dir.clone()),
-            &s(dest_dir.clone()),
-            &workspace,
-            &reg,
-        )
-        .expect("copy dir");
-        assert_eq!(
-            std::fs::read(dest_dir.join("inner/x.txt")).unwrap(),
-            b"x"
-        );
+        fs_copy_impl(&s(src_dir.clone()), &s(dest_dir.clone()), &workspace, &reg)
+            .expect("copy dir");
+        assert_eq!(std::fs::read(dest_dir.join("inner/x.txt")).unwrap(), b"x");
     }
 
     // Deleting a symlink that points at a directory must remove only the link,

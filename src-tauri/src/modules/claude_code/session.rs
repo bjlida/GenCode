@@ -26,10 +26,7 @@ pub struct ClaudeCodeSessionConfig {
 ///
 /// Resolves the binary based on the source preference (system vs bundled),
 /// configures environment variables, and sets the working directory.
-pub fn build_command(
-    app: &AppHandle,
-    cfg: &ClaudeCodeSessionConfig,
-) -> Result<Command, String> {
+pub fn build_command(app: &AppHandle, cfg: &ClaudeCodeSessionConfig) -> Result<Command, String> {
     let active = runtime::find_claude_code(app, &cfg.preference)?;
 
     // Ensure the GenCode config directory exists for Claude Code settings.

@@ -223,7 +223,10 @@ mod unix {
 
     fn integration_root() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or_else(|| "could not resolve home dir".to_string())?;
-        let root = home.join(".cache").join("gencode").join("shell-integration");
+        let root = home
+            .join(".cache")
+            .join("gencode")
+            .join("shell-integration");
         fs::create_dir_all(&root).map_err(|e| format!("create {}: {e}", root.display()))?;
         Ok(root)
     }
@@ -308,7 +311,9 @@ mod windows {
             zdotdir: String,
             user_zdotdir: Option<String>,
         },
-        Bash { rcfile: String },
+        Bash {
+            rcfile: String,
+        },
         Fish,
         None,
     }
@@ -344,10 +349,7 @@ mod windows {
             } else {
                 match prepare_ps_profile() {
                     Ok(profile) => {
-                        log::info!(
-                            "powershell integration profile: {}",
-                            profile.display()
-                        );
+                        log::info!("powershell integration profile: {}", profile.display());
                         cmd.arg("-ExecutionPolicy");
                         cmd.arg("Bypass");
                         cmd.arg("-File");
@@ -558,7 +560,10 @@ mod windows {
 
     fn integration_root() -> Result<PathBuf, String> {
         let home = dirs::home_dir().ok_or_else(|| "could not resolve home dir".to_string())?;
-        let root = home.join(".cache").join("gencode").join("shell-integration");
+        let root = home
+            .join(".cache")
+            .join("gencode")
+            .join("shell-integration");
         fs::create_dir_all(&root).map_err(|e| format!("create {}: {e}", root.display()))?;
         Ok(root)
     }
@@ -791,9 +796,7 @@ fn pwsh_from_store_package() -> Option<PathBuf> {
             continue;
         }
         let pwsh = entry.path().join("pwsh.exe");
-        if is_usable_exe(&pwsh)
-            && (best.as_ref().is_none_or(|(n, _)| name > *n))
-        {
+        if is_usable_exe(&pwsh) && (best.as_ref().is_none_or(|(n, _)| name > *n)) {
             best = Some((name, pwsh));
         }
     }

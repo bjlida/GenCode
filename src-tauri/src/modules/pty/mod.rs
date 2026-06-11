@@ -82,8 +82,7 @@ pub async fn pty_open_command(
 ) -> Result<u32, String> {
     let id = state.next_id.fetch_add(1, Ordering::Relaxed);
     let session = tauri::async_runtime::spawn_blocking(move || {
-        session::spawn_command(id, app, cols, rows, command, on_data, on_exit)
-            .map(|(s, _)| s)
+        session::spawn_command(id, app, cols, rows, command, on_data, on_exit).map(|(s, _)| s)
     })
     .await
     .map_err(|e| {

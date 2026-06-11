@@ -40,11 +40,9 @@ pub async fn claude_code_status(
 #[tauri::command]
 pub async fn claude_code_install(app: AppHandle) -> Result<(), String> {
     let app_ref = app.clone();
-    tokio::task::spawn_blocking(move || {
-        runtime::install_claude_code(&app_ref)
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    tokio::task::spawn_blocking(move || runtime::install_claude_code(&app_ref))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

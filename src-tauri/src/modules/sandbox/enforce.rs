@@ -122,18 +122,15 @@ pub fn check_command(policy: &SecurityPolicy, command: &str) -> EnforcementResul
     // If there's an allowlist, check it.
     if !policy.allowed_commands.is_empty() {
         let cmd_name = command.split_whitespace().next().unwrap_or("");
-        let allowed = policy
-            .allowed_commands
-            .iter()
-            .any(|a| {
-                // Exact match on the full command string.
-                command == a.as_str()
+        let allowed = policy.allowed_commands.iter().any(|a| {
+            // Exact match on the full command string.
+            command == a.as_str()
                     // Prefix match: "ls" matches "ls -la" but only when the
                     // rest of the command contains no shell metacharacters
                     // that extend beyond a simple command+args (e.g. `|`, `;`).
                     || (command.starts_with(&format!("{} ", a))
                         && is_plain_command(command, a.len() + 1))
-            });
+        });
         if !allowed {
             return EnforcementResult::Denied(format!("命令不在允许列表中: {cmd_name}"));
         }
@@ -202,7 +199,11 @@ fn is_within_workspace(policy: &SecurityPolicy, path: &str) -> bool {
         return false;
     }
     // Normalize separators to forward-slash for reliable boundary checks.
-    let root = policy.workspace_root.replace('\\', "/").trim_end_matches('/').to_string();
+    let root = policy
+        .workspace_root
+        .replace('\\', "/")
+        .trim_end_matches('/')
+        .to_string();
     let p = path.replace('\\', "/");
     if p == root {
         return true;
@@ -245,12 +246,10 @@ fn is_denied_path(policy: &SecurityPolicy, path: &str) -> bool {
         } else if d_lower.ends_with('/') {
             // Directory pattern — must be an exact path prefix with separator boundary.
             let dir = d_lower.trim_end_matches('/');
-            p_lower == dir
-                || p_lower.starts_with(&format!("{dir}/"))
+            p_lower == dir || p_lower.starts_with(&format!("{dir}/"))
         } else {
             // File/basename pattern — match as a path component (exact or ends-with).
-            p_lower.ends_with(&format!("/{d_lower}"))
-                || p_lower == d_lower
+            p_lower.ends_with(&format!("/{d_lower}")) || p_lower == d_lower
         }
     })
 }

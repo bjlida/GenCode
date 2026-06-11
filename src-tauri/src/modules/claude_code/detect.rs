@@ -44,7 +44,11 @@ impl Platform {
             ""
         };
 
-        Platform { os, arch, libc: libc.to_string() }
+        Platform {
+            os,
+            arch,
+            libc: libc.to_string(),
+        }
     }
 
     /// CDN platform directory name, e.g. "darwin-arm64", "win32-x64", "linux-x64-musl".
@@ -171,10 +175,7 @@ pub fn detect_system_claude() -> Option<DetectedClaude> {
     // 2. Check known paths (may not be in PATH for GUI apps).
     let known_paths = known_install_paths(&platform, &binary);
 
-    let candidates: Vec<PathBuf> = path_candidates
-        .into_iter()
-        .chain(known_paths)
-        .collect();
+    let candidates: Vec<PathBuf> = path_candidates.into_iter().chain(known_paths).collect();
 
     for path in candidates {
         if path.exists() {
@@ -188,7 +189,11 @@ pub fn detect_system_claude() -> Option<DetectedClaude> {
 
 /// Find a binary on PATH.
 fn find_on_path(name: &str) -> Vec<PathBuf> {
-    let which_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
+    let which_cmd = if cfg!(target_os = "windows") {
+        "where"
+    } else {
+        "which"
+    };
     if let Ok(out) = Command::new(which_cmd).arg(name).output() {
         if out.status.success() {
             let s = String::from_utf8_lossy(&out.stdout);
@@ -369,10 +374,7 @@ pub fn fetch_latest_version() -> Result<String, String> {
 
 /// Download the Claude Code native binary for the current platform.
 /// Returns the bytes and the version string.
-pub fn download_claude_binary(
-    version: &str,
-    dest_dir: &Path,
-) -> Result<PathBuf, String> {
+pub fn download_claude_binary(version: &str, dest_dir: &Path) -> Result<PathBuf, String> {
     let platform = Platform::detect();
     let binary_name = platform.binary_name();
     let platform_str = platform.platform_string();
@@ -502,9 +504,18 @@ mod tests {
     #[test]
     fn source_preference_roundtrip() {
         assert_eq!(SourcePreference::from_str("auto"), SourcePreference::Auto);
-        assert_eq!(SourcePreference::from_str("system"), SourcePreference::System);
-        assert_eq!(SourcePreference::from_str("bundled"), SourcePreference::Bundled);
-        assert_eq!(SourcePreference::from_str("unknown"), SourcePreference::Auto);
+        assert_eq!(
+            SourcePreference::from_str("system"),
+            SourcePreference::System
+        );
+        assert_eq!(
+            SourcePreference::from_str("bundled"),
+            SourcePreference::Bundled
+        );
+        assert_eq!(
+            SourcePreference::from_str("unknown"),
+            SourcePreference::Auto
+        );
         assert_eq!(SourcePreference::from_str(""), SourcePreference::Auto);
     }
 

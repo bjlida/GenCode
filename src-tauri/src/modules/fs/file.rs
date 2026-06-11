@@ -119,9 +119,8 @@ fn fs_read_file_data_url_impl(
     registry: &WorkspaceRegistry,
 ) -> Result<DataUrlResult, String> {
     let p = super::require_authorized(registry, workspace, path)?;
-    let media_type = image_media_type(&p).ok_or_else(|| {
-        "仅支持 PNG、JPEG、GIF、WebP、BMP、SVG、ICO 图片。".to_string()
-    })?;
+    let media_type = image_media_type(&p)
+        .ok_or_else(|| "仅支持 PNG、JPEG、GIF、WebP、BMP、SVG、ICO 图片。".to_string())?;
     let meta = std::fs::metadata(&p).map_err(|e| {
         log::debug!("fs_read_file_data_url stat({}) failed: {e}", p.display());
         e.to_string()
@@ -204,13 +203,7 @@ pub fn fs_write_file(
 ) -> Result<(), String> {
     let workspace = WorkspaceEnv::from_option(workspace);
     fs_write_file_impl(&path, &content, &workspace, &registry)?;
-    let _ = app.emit(
-        "fs:file-written",
-        FileWrittenEvent {
-            path,
-            source,
-        },
-    );
+    let _ = app.emit("fs:file-written", FileWrittenEvent { path, source });
     Ok(())
 }
 

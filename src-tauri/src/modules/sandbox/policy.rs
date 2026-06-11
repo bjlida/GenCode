@@ -204,8 +204,7 @@ pub fn read_policy() -> Result<SecurityPolicy, String> {
 pub fn write_policy(policy: &SecurityPolicy) -> Result<(), String> {
     let path = policy_path()?;
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("创建配置目录失败: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建配置目录失败: {e}"))?;
     }
     let tmp = path.with_extension("json.gencode-tmp");
     let out = serde_json::to_string_pretty(policy).map_err(|e| e.to_string())?;
